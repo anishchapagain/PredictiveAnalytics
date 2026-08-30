@@ -12,12 +12,14 @@ LLM/agent involved (see `../notes.txt` for the two-phase plan and why the phasin
 Phase 2 will put an agentic/LLM layer on top of this API rather than replace it -- everything
 here is designed to also work as tool calls for that later agent, not just as a human-facing API.
 
-Logic here generalizes a pre-existing single-corridor prototype,
-[`../business_data_send.py`](../business_data_send.py) (a Colab export hard-coded to
-AUSTRALIA -> BHUTAN), to any receiver country / corridor / agent, driven by
-[`../ISEND_Treasury_Forecasting_Flow.pdf`](../ISEND_Treasury_Forecasting_Flow.pdf)'s
-forecast-adjustment-factors and daily-monitoring business logic (holidays, salary-week effects,
-safety stock as risk-adjusted funding).
+Logic here generalizes a pre-existing single-corridor prototype (`business_data_send.py`, a
+Colab export hard-coded to AUSTRALIA -> BHUTAN) to any receiver country / corridor / agent,
+driven by the ISEND Treasury Forecasting Flow business specification: forecast adjustment
+factors and daily-monitoring logic (holidays, salary-week effects, safety stock as
+risk-adjusted funding).
+
+Neither the prototype nor the specification document is committed to this repository -- both
+are kept locally, so the references above are deliberately plain text rather than links.
 
 Related docs: `../CLAUDE.md` (repo-wide guidance + `Business_Report.csv` schema),
 `../notes.txt` (project plan/phasing/open questions), `../eda/README.md` (data profiling).
