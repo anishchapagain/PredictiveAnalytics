@@ -26,7 +26,7 @@ Contents:
 - `TODO.md` — the actionable checklist version of the same gaps (tests, git init, CI, auth,
   deployment, etc.), grouped by leverage. `notes.txt` is the narrative/decision log behind each
   item; keep both in sync rather than letting one drift.
-- `ISEND_Treasury_Forecasting_Flow.pdf` — the business-process spec `app/`'s forecasting logic
+- `PROJECT_Treasury_Forecasting_Flow.pdf` — the business-process spec `app/`'s forecasting logic
   (holidays, safety stock, gap analysis) is built from.
 - `technical.md` — developer-facing technical knowledgebase: system-context/component
   diagrams, request-flow sequence diagrams (`/run`, `/evaluate`, `/baseline-suggestion`, the
@@ -90,7 +90,7 @@ each session:
 
 ## Architecture
 
-`app/` (FastAPI + Prophet) is `iSendAnalytics`'s Phase 1 deliverable — see `notes.txt` for the
+`app/` (FastAPI + Prophet) is `ProjectAnalytics`'s Phase 1 deliverable — see `notes.txt` for the
 two-phase plan (this is the deterministic, no-LLM platform; Phase 2 adds an agentic layer on top
 of this same API later, doesn't replace it).
 

@@ -1,6 +1,6 @@
 # Walkthrough: Remittance Feature Engineering, EVAL Results & August 2026 Forecasts
 
-The notebook [remittance_volume_forecasting_feature_engineering.ipynb](file:///d:/RandD/iSendAnalytics/remittance_volume_forecasting_feature_engineering.ipynb) has been executed against the full **`Business_Report.csv`** dataset (1,430,655 remittance transactions from `2024-01-01` to `2026-07-31`).
+The notebook `remittance_volume_forecasting_feature_engineering.ipynb` has been executed against the full **`Business_Report.csv`** dataset (1,430,655 remittance transactions from `2024-01-01` to `2026-07-31`).
 
 ---
 
@@ -51,4 +51,4 @@ The notebook also executed August 2026 projections for:
 - **Corridor Level:** `HONG KONG -> INDIA`
 - **Agent Level:** `EPAY LIMITED`
 
-All cells have executed cleanly, and the notebook with embedded plots, scorecards, and forecast dataframes is saved at [remittance_volume_forecasting_feature_engineering.ipynb](file:///d:/RandD/iSendAnalytics/remittance_volume_forecasting_feature_engineering.ipynb).
+All cells have executed cleanly, and the notebook with embedded plots, scorecards, and forecast dataframes is saved at `remittance_volume_forecasting_feature_engineering.ipynb`.

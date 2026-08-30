@@ -7,14 +7,14 @@ very different sizes on the same footing.
 
 ## Where this fits
 
-This is `iSendAnalytics`'s **Phase 1** deliverable: a deterministic, API-driven platform, no
+This is `ProjectAnalytics`'s **Phase 1** deliverable: a deterministic, API-driven platform, no
 LLM/agent involved (see `../notes.txt` for the two-phase plan and why the phasing was chosen).
 Phase 2 will put an agentic/LLM layer on top of this API rather than replace it -- everything
 here is designed to also work as tool calls for that later agent, not just as a human-facing API.
 
 Logic here generalizes a pre-existing single-corridor prototype (`business_data_send.py`, a
 Colab export hard-coded to AUSTRALIA -> BHUTAN) to any receiver country / corridor / agent,
-driven by the ISEND Treasury Forecasting Flow business specification: forecast adjustment
+driven by the PROJECT Treasury Forecasting Flow business specification: forecast adjustment
 factors and daily-monitoring logic (holidays, salary-week effects, safety stock as
 risk-adjusted funding).
 

@@ -7,7 +7,7 @@ specifically, which carries the same core guidance in more depth). **Keep this f
 
 ## What this is
 
-`iSendAnalytics` — Phase 1 of a two-phase plan (see `notes.txt`): a deterministic, API-driven
+`ProjectAnalytics` — Phase 1 of a two-phase plan (see `notes.txt`): a deterministic, API-driven
 treasury forecasting/liquidity platform, no LLM/agent involved yet. `app/` is a FastAPI service
 wrapping a Prophet-based volume forecaster + liquidity-risk simulation for remittance corridors,
 receiving countries, and agents. Phase 2 (later, not started) adds an agentic/LLM layer as a
