@@ -154,21 +154,6 @@ per request, so the environment sets operational defaults rather than hard limit
 
 ---
 
-## Not in this repository
-
-Kept local by design, enforced through `.gitignore`:
-
-| | |
-| --- | --- |
-| `Business_Report.csv` | 233 MB of real transactions, over GitHub's file-size limit |
-| `.env` | see `.env.example` for the field list |
-| `*.pdf` | the business process specification |
-| `*.ipynb` | exploratory notebooks |
-| `eda/*.html` | generated profiling reports built from the real data |
-| `business*.py` | the Colab prototype this engine generalizes |
-
----
-
 ## Status
 
 **Phase 1**, and complete: a deterministic, API-driven platform with no LLM or agent layer.
