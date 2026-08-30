@@ -1,6 +1,6 @@
 # Technical Architecture & Design Reference
 
-This is the developer-facing technical knowledgebase for `ProjectAnalytics` Phase 1 (the
+This is the developer-facing technical knowledgebase for `PredictiveAnalytics` Phase 1 (the
 Global Treasury Forecasting & Liquidity Engine, `app/`). It documents *how the system is put
 together* — system context, component/container architecture, request-flow sequence diagrams,
 class diagrams for every layer, the SOLID/DRY/OOP principles actually applied in the code, and
@@ -32,7 +32,7 @@ flowchart LR
     DEV["Developer / API caller\n(curl, /docs)"]
     AGENT["Phase 2: LLM/Agent layer\n(planned, not built — notes.txt)"]
 
-    subgraph SYS["ProjectAnalytics Phase 1"]
+    subgraph SYS["PredictiveAnalytics Phase 1"]
         APP["Global Treasury Forecasting\n& Liquidity Engine\n(FastAPI + Prophet)"]
     end
 

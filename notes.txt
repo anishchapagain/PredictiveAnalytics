@@ -1,4 +1,4 @@
-ProjectAnalytics — Project Notes
+PredictiveAnalytics — Project Notes
 Captured: 2026-08-17
 Updated: 2026-08-19
 Status: Phase 1 underway -- forecasting engine + API + a dashboard (now with an

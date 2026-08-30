@@ -34,7 +34,8 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Global Treasury Forecasting & Liquidity Engine",
-    summary="Prophet-based volume forecasting + liquidity-risk simulation -- Phase 1 of Pay.",
+    summary="Prophet-based volume forecasting + liquidity-risk simulation -- Phase 1 of "
+    "PredictiveAnalytics.",
     description=(
         "Prophet-based volume forecasting and liquidity-risk simulation for remittance "
         "corridors, receiving countries, and agents. Deterministic, API-driven (no LLM/agent "

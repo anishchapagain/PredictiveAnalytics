@@ -90,7 +90,7 @@ each session:
 
 ## Architecture
 
-`app/` (FastAPI + Prophet) is `ProjectAnalytics`'s Phase 1 deliverable — see `notes.txt` for the
+`app/` (FastAPI + Prophet) is `PredictiveAnalytics`'s Phase 1 deliverable — see `notes.txt` for the
 two-phase plan (this is the deterministic, no-LLM platform; Phase 2 adds an agentic layer on top
 of this same API later, doesn't replace it).
 
