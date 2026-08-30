@@ -1,0 +1,22 @@
+[tool.ruff]
+line-length = 100
+target-version = "py313"  # closest ruff-supported target; repo actually runs 3.14
+
+[tool.ruff.lint]
+# E/W: pycodestyle (PEP8), F: pyflakes, B: bugbear, I: import sorting, UP: pyupgrade.
+select = ["E", "W", "F", "B", "I", "UP"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's dependency-injection pattern *requires* `Depends(...)` as an argument default
+# (FastAPI calls it per-request); it's not the mutable-default footgun B008 warns about.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.params.Depends"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Never picked up unless a caller explicitly runs `pytest -m slow` -- none marked yet,
+# reserved for if a real (not synthetic-fixture) integration test is ever added that
+# needs the actual 233MB Business_Report.csv, which isn't present in a fresh clone/CI.
+markers = ["slow: needs real data or takes noticeably longer than the rest of the suite"]

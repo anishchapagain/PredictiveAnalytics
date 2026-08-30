@@ -1,0 +1,13 @@
+# Global Treasury Forecasting & Liquidity Engine
+fastapi
+uvicorn[standard]
+pydantic-settings
+pandas
+prophet
+holidays
+pycountry
+plotly
+# Optional LightGBM comparison forecast (ForecastRequest.include_lightgbm). Imported
+# lazily in app/forecasting/gbdt.py so a Prophet-only deployment never pays its import
+# cost, but it is a hard requirement to serve a request with the flag enabled.
+lightgbm

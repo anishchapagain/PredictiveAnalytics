@@ -1,0 +1,8 @@
+# Dev-only tooling -- not needed to run the app, only to develop/lint it.
+-r requirements.txt
+
+flake8
+ruff
+openapi-spec-validator
+pytest
+httpx  # FastAPI's TestClient is httpx-backed as of Starlette >= 0.37/FastAPI >= 0.110

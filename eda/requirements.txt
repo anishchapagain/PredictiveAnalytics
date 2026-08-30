@@ -1,0 +1,4 @@
+# ydata-profiling does not yet support Python 3.14 (this project's .venv) -- newest release
+# (4.18.4) caps at Requires-Python <3.14. Falling back to sweetviz per the EDA plan's fallback
+# chain: same "one HTML report" deliverable, much lighter/newer-Python-friendly dependencies.
+sweetviz

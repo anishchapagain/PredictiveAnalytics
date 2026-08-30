@@ -1,0 +1,11 @@
+# Normalize line endings to LF in the repository itself regardless of what platform
+# commits, so diffs stay clean across Windows/Mac/Linux contributors -- Git still
+# checks files out using each platform's native line ending locally (core.autocrlf),
+# only the stored/committed bytes are normalized.
+* text=auto eol=lf
+
+# Binary-ish/generated files: never diff, never line-ending-convert.
+*.png binary
+*.jpg binary
+*.gz binary
+plotly-cartesian.min.js -diff

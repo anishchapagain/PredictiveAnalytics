@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: "pip"
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      # requirements-dev.txt itself pulls in requirements.txt (-r requirements.txt), so
+      # this installs the full runtime + dev/lint/test toolchain in one step.
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint (ruff)
+        run: ruff check app/ tests/
+
+      - name: Lint (flake8)
+        run: flake8 app/ tests/
+
+      # tests/ never touches Business_Report.csv (233MB, not in this repo -- see
+      # .gitignore/CLAUDE.md) -- a small synthetic fixture stands in for it, so this
+      # step needs no data-provisioning step of its own. Includes live OpenAPI-schema
+      # validation (tests/test_openapi.py) -- no separate step needed for that either.
+      - name: Test (pytest)
+        run: pytest tests/ -v

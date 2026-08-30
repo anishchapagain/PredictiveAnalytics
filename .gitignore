@@ -1,0 +1,61 @@
+# Data -- 233MB, exceeds GitHub's 100MB hard file-size limit and isn't suited to git
+# history anyway (never actually shrinks a repo once committed, even after deletion).
+# Place Business_Report.csv at the repo root manually; see CLAUDE.md for the schema.
+Business_Report.csv
+
+# Secrets / local environment overrides. .env currently ships only default values (see
+# CLAUDE.md) so committing it has never been *unsafe* so far, but that's exactly the kind
+# of thing that quietly stops being true the first time someone adds a real credential --
+# .env.example (committed) documents the same fields without that risk.
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Runtime output -- app/core/logging_config.py recreates logs/ on startup either way.
+logs/
+*.log
+
+# Editor/OS cruft
+.DS_Store
+Thumbs.db
+
+# Documents -- the process-spec PDF and anything else. *.pdf matches at every
+# directory level, not just the repo root.
+*.pdf
+
+# Generated EDA reports -- sweetviz output built from the real transaction data, so
+# they embed live agent names and volume distributions. Regenerate on demand with
+# `python eda/generate_eda_report.py`; the generator itself stays in the repo.
+eda/*.html
+I*.pdf
+
+# business notes
+busi*.py
+
+# Test artifacts (.pytest_cache/ already covered above)
+.coverage
+htmlcov/
+
+# Notebooks
+*.ipynb
+
+# Editor workspace settings -- machine-specific paths and personal preferences, not
+# project configuration. .vscode/ appeared as untracked before the first push.
+.vscode/
+.idea/
+
+# Scratch/QA output produced while testing, never part of the deliverable.
+qa_report.html
+*.orig
+*.rej
+
+# Colab-exported prototype (business_data_send.py and friends) -- kept locally as
+# reference for where the safety-stock / gap-analysis terminology came from, but not
+# part of the deliverable; app/ generalises it.
+business*.py

@@ -1,0 +1,1952 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Treasury Forecasting Dashboard</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='24' font-size='26'%3E%F0%9F%92%B0%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    color-scheme: light;
+    --page:            #f9f9f7;
+    --surface:         #fcfcfb;
+    --text-primary:    #0b0b0b;
+    --text-secondary:  #52514e;
+    --text-muted:      #898781;
+    --hairline:        #e1e0d9;
+    --border-ring:     rgba(11,11,11,0.10);
+    --accent:          #2a78d6;
+    --accent-ink:      #ffffff;
+    --series-2:        #eb6834;
+    --series-3:        #7a5af8;
+    --status-good:     #0ca30c;
+    --status-warning:  #fab219;
+    --status-critical: #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --page:            #0d0d0d;
+      --surface:         #1a1a19;
+      --text-primary:    #ffffff;
+      --text-secondary:  #c3c2b7;
+      --text-muted:      #898781;
+      --hairline:        #2c2c2a;
+      --border-ring:     rgba(255,255,255,0.10);
+      --accent:          #3987e5;
+      --accent-ink:      #ffffff;
+      --series-2:        #d95926;
+      --series-3:        #a48bff;
+      --status-good:     #0ca30c;
+      --status-warning:  #fab219;
+      --status-critical: #e66767;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--page);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  body { padding: 24px 24px 64px; }
+
+  .wrap { max-width: 1100px; margin: 0 auto; }
+
+  header h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  header p { margin: 0 0 24px; color: var(--text-secondary); font-size: 0.95rem; }
+  header p a { color: var(--accent); }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border-ring);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .card summary { cursor: pointer; font-weight: 600; }
+
+  /* Form sections. The form used to be one flex row holding everything, which bottom-
+     aligned fields of very different heights -- the baseline block is ~3 rows taller than
+     a plain select, so it stranded itself at the top-right with its label floating away
+     from the row. Grouping into titled sections fixes that and gives the page an
+     information architecture: what to forecast, what to compare it against, then the
+     model knobs most users never open. */
+  .form-section { border: 0; margin: 0 0 4px; padding: 0; min-width: 0; }
+  .form-section + .form-section { margin-top: 18px; }
+  .form-section > legend {
+    padding: 0 0 10px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-muted);
+  }
+  /* align-items: start (not flex-end) so a taller field can never drag its neighbours'
+     labels out of alignment. */
+  .field-row { display: flex; flex-wrap: wrap; gap: 14px 16px; align-items: start; }
+  .field { display: flex; flex-direction: column; gap: 4px; min-width: 160px; flex: 1 1 160px; }
+  /* Caps so a lone visible field can't stretch to the full card width -- a country
+     dropdown 900px wide reads as broken, not generous. */
+  .field-row > .field { max-width: 300px; }
+  .field-narrow { flex: 0 1 130px; max-width: 130px; }
+  .field-medium { flex: 0 1 220px; max-width: 220px; }
+  .field label { font-size: 0.8rem; color: var(--text-secondary); display: flex; align-items: center; }
+  .field.hidden { display: none; }
+
+  /* Baseline: the number and the way to derive it, side by side and top-aligned, rather
+     than the suggest controls hanging off the bottom of a taller-than-everything field. */
+  .baseline-layout { display: flex; flex-wrap: wrap; gap: 16px 22px; align-items: start; }
+  .baseline-suggest { display: flex; flex-direction: column; gap: 4px; }
+  .baseline-suggest-label {
+    font-size: 0.8rem; color: var(--text-secondary); display: flex; align-items: center;
+  }
+
+  /* Advanced settings: same titled-group treatment, so three checkbox stacks and a wide
+     status list stop competing for space in one ragged auto-fill grid. */
+  .advanced-body { display: flex; flex-direction: column; gap: 18px; margin-top: 14px; }
+  .adv-group { border: 0; margin: 0; padding: 0; min-width: 0; }
+  .adv-group > legend {
+    padding: 0 0 9px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-muted); display: flex; align-items: center;
+  }
+  .adv-grid {
+    display: flex; flex-wrap: wrap; gap: 14px 20px; align-items: start;
+  }
+  .adv-grid > .field { flex: 0 1 240px; max-width: 280px; }
+  .checkbox-stack { display: flex; flex-direction: column; gap: 5px; padding-top: 2px; }
+
+  select, input[type=number], input[type=text] {
+    font: inherit;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--hairline);
+    background: var(--surface);
+    color: var(--text-primary);
+  }
+  select:focus, input:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  button {
+    font: inherit;
+    font-weight: 600;
+    padding: 10px 20px;
+    border-radius: 6px;
+    border: none;
+    background: var(--accent);
+    color: var(--accent-ink);
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.6; cursor: default; }
+
+  details.advanced { margin-top: 16px; }
+  details.advanced summary {
+    cursor: pointer; font-size: 0.85rem; color: var(--text-secondary); font-weight: 400;
+    padding: 4px 0;
+  }
+  .advanced-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px; margin-top: 12px;
+  }
+  .checkbox-row { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; }
+  .status-checks { display: flex; flex-wrap: wrap; gap: 10px; }
+
+  /* LightGBM comparison -- visually separated from the Prophet knobs above it, because
+     everything in this block is opt-in and affects a comparison column only. */
+  /* Separated by space, not a rule: a <legend> renders above its fieldset's padding box,
+     so a border-top here draws straight through the "Second model" label. The legend plus
+     the bordered toggle below already read as a distinct group. */
+  .lgbm-block { margin-top: 24px; }
+  /* The whole title + description is one clickable label, so the explanation is part of
+     the control rather than a paragraph stranded beside it. Previously the note was
+     indented 22px and capped at 70ch inside a full-width block, which left it hugging the
+     left edge with a large empty gutter -- it read as cornered rather than deliberate. */
+  .lgbm-toggle {
+    display: flex; align-items: flex-start; gap: 10px; cursor: pointer;
+    padding: 12px 14px; border: 1px solid var(--hairline); border-radius: 6px;
+    background: var(--page);
+  }
+  .lgbm-toggle:hover { border-color: var(--text-muted); }
+  .lgbm-toggle > input[type=checkbox] { margin: 2px 0 0; flex: none; }
+  .lgbm-toggle-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .lgbm-toggle-title {
+    font-size: 0.9rem; font-weight: 600; color: var(--text-primary);
+    display: flex; align-items: center;
+  }
+  .lgbm-note {
+    font-size: 0.82rem; color: var(--text-secondary); line-height: 1.55;
+    max-width: 88ch;
+  }
+  /* Nested disclosure: enabling the comparison reveals this, opening it reveals the
+     parameters. Eleven inputs are a rare need, so they stay one deliberate click away. */
+  .lgbm-advanced { margin: 12px 0 0; }
+  .lgbm-advanced.hidden { display: none; }
+  .lgbm-advanced > summary {
+    cursor: pointer; font-size: 0.84rem; color: var(--text-secondary);
+    padding: 6px 0; display: flex; align-items: center; gap: 10px;
+  }
+  .lgbm-advanced > summary:hover { color: var(--text-primary); }
+  .lgbm-count {
+    font-size: 0.72rem; color: var(--text-muted);
+    border: 1px solid var(--hairline); border-radius: 10px; padding: 1px 8px;
+  }
+  .lgbm-body {
+    margin-top: 10px; padding: 16px 18px;
+    background: var(--page); border: 1px solid var(--hairline); border-radius: 6px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .lgbm-defaults-note {
+    margin: 0; font-size: 0.8rem; color: var(--text-muted);
+    max-width: 78ch; line-height: 1.5;
+  }
+  .lgbm-group { border: 0; margin: 0; padding: 0; min-width: 0; }
+  .lgbm-group > legend {
+    padding: 0 0 8px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-muted);
+  }
+  /* Capped column width so three fields never stretch to fill an ultra-wide screen --
+     a number input 400px wide reads as broken rather than generous. */
+  .lgbm-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 200px));
+    gap: 12px 16px;
+  }
+  .lgbm-input.invalid {
+    border-color: var(--status-critical);
+    outline: 2px solid color-mix(in srgb, var(--status-critical) 25%, transparent);
+    outline-offset: 0;
+  }
+  .field-error {
+    display: none; margin-top: 4px; font-size: 0.74rem; line-height: 1.35;
+    color: var(--status-critical);
+  }
+  .field-error.show { display: block; }
+  .lgbm-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .lgbm-reset-hint { font-size: 0.76rem; color: var(--text-muted); }
+  .secondary-btn {
+    background: transparent; color: var(--text-secondary);
+    border: 1px solid var(--hairline); border-radius: 4px;
+    padding: 7px 14px; font-size: 0.82rem; cursor: pointer;
+  }
+  .secondary-btn:hover { color: var(--text-primary); border-color: var(--text-secondary); }
+  /* LightGBM values in the results table: tinted with the second series colour already
+     used for the LightGBM chart trace, so the two expected-volume columns are never
+     confused at a glance and table and chart agree on which colour means which model. */
+  td.lgbm-cell { color: var(--series-3); }
+  .lgbm-badge {
+    display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 3px;
+    font-size: 0.7rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+    background: var(--page); border: 1px solid var(--hairline); color: var(--series-3);
+  }
+
+  .baseline-suggest-row {
+    display: flex; align-items: center; gap: 5px; margin-top: 7px;
+    font-size: 0.76rem; color: var(--text-secondary);
+  }
+  .baseline-suggest-row select, .baseline-suggest-row input[type=number] {
+    font-size: 0.76rem; padding: 3px 5px; border-radius: 4px;
+  }
+  .baseline-suggest-row input[type=number] { width: 52px; }
+  .baseline-suggest-row button {
+    font-size: 0.76rem; font-weight: 600; padding: 3px 10px; border-radius: 4px;
+    background: transparent; color: var(--accent); border: 1px solid var(--accent);
+  }
+  .baseline-suggest-row button:hover:not(:disabled) { background: var(--accent); color: var(--accent-ink); }
+  .baseline-suggest-row button:disabled { opacity: 0.5; cursor: default; }
+  .baseline-suggest-result {
+    font-size: 0.72rem; color: var(--text-muted); margin-top: 5px; min-height: 1.3em;
+  }
+  .baseline-suggest-result.error { color: var(--status-critical); }
+
+  /* The primary action gets a rule above it and sits on its own line, so it reads as
+     "everything above is the request, this runs it" rather than as one more field. */
+  .run-row {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--hairline);
+  }
+  .run-row > button[type=submit] { padding: 10px 22px; font-size: 0.92rem; }
+  .spinner {
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 2px solid var(--hairline); border-top-color: var(--accent);
+    animation: spin 0.8s linear infinite; display: none;
+  }
+  .spinner.active { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .run-status { font-size: 0.85rem; color: var(--text-secondary); }
+
+  .error-banner {
+    background: color-mix(in srgb, var(--status-critical) 12%, var(--surface));
+    border: 1px solid var(--status-critical);
+    color: var(--text-primary);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    font-size: 0.9rem;
+  }
+  .error-banner.hidden { display: none; }
+
+  .results.hidden { display: none; }
+
+  .meta-line { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px; }
+  .meta-line code {
+    background: var(--page); border: 1px solid var(--hairline);
+    border-radius: 4px; padding: 1px 5px; font-size: 0.85em;
+  }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 0.8rem; font-weight: 600;
+    padding: 3px 10px; border-radius: 999px;
+    border: 1px solid var(--hairline);
+  }
+  .badge .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .badge-good .dot { background: var(--status-good); }
+  .badge-good { color: var(--status-good); }
+  .badge-critical .dot { background: var(--status-critical); }
+  .badge-critical { color: var(--status-critical); }
+  .badge-warning .dot { background: var(--status-warning); }
+  .badge-warning { color: var(--status-warning); }
+
+  .stat-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1px; background: var(--hairline);
+    border: 1px solid var(--hairline); border-radius: 10px; overflow: hidden;
+    margin-bottom: 20px;
+  }
+  .stat-tile { background: var(--surface); padding: 16px; }
+  .stat-tile .label {
+    font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 6px;
+    display: flex; align-items: center;
+  }
+  .stat-tile .value {
+    font-size: 1.5rem; font-weight: 600; line-height: 1.2;
+    font-variant-numeric: proportional-nums;
+  }
+  .stat-tile .sub { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; }
+
+  /* ---- info icon (label/stat-tile/table-header hint) ---- */
+  .info {
+    position: relative; display: inline-flex; align-items: center; justify-content: center;
+    width: 15px; height: 15px; border-radius: 50%; flex: none;
+    background: var(--hairline); color: var(--text-secondary);
+    font-size: 0.68rem; font-weight: 700; font-style: normal; cursor: help;
+    margin-left: 5px; line-height: 1; user-select: none;
+  }
+
+  /* Tooltip portal: ONE shared element appended to <body> (see wireInfoIcons()/
+     showInfoTooltip() in the script below), positioned via getBoundingClientRect() on
+     hover/focus of any .info icon rather than pure-CSS :hover + position:absolute.
+     Needed because a CSS-positioned tooltip is clipped by *any* ancestor that sets
+     overflow:hidden/auto -- hit twice now in different places (the data table's sticky
+     `<th>` inside a scrolling container, and .stat-grid's overflow:hidden, needed there
+     for its rounded-corner/hairline-gap look). A viewport-fixed portal escapes every
+     such ancestor at once instead of special-casing each one as it's discovered. */
+  #info-tooltip-portal {
+    position: fixed; visibility: hidden; opacity: 0; transition: opacity 0.12s ease;
+    width: 230px; background: #17171a; color: #ffffff;
+    font-size: 0.75rem; font-weight: 400; line-height: 1.45; text-align: left;
+    padding: 8px 10px; border-radius: 6px; z-index: 1000;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25); pointer-events: none;
+  }
+  #info-tooltip-portal.visible { visibility: visible; opacity: 1; }
+
+  .glossary-grid {
+    display: grid; grid-template-columns: 210px 1fr; gap: 8px 18px;
+    margin-top: 14px; font-size: 0.85rem;
+  }
+  .glossary-grid .term { font-weight: 600; }
+  .glossary-grid .def { color: var(--text-secondary); }
+  @media (max-width: 640px) {
+    .glossary-grid { grid-template-columns: 1fr; }
+    .glossary-grid .term { margin-top: 10px; }
+  }
+
+  /* One chart per row, each using the full available width -- stacked, not side-by-side,
+     so both the funding-gap chart and the trend-decomposition chart get maximum room to
+     plot against (helpful given how much a wide date range compresses each series). */
+  .charts-grid {
+    display: grid; grid-template-columns: 1fr;
+    gap: 20px; margin-bottom: 20px; align-items: start;
+  }
+  figure {
+    margin: 0; background: var(--surface); border: 1px solid var(--border-ring);
+    border-radius: 10px; padding: 16px;
+  }
+  figure img { width: 100%; height: auto; border-radius: 6px; display: block; }
+  figcaption { font-size: 0.8rem; color: var(--text-secondary); margin-top: 8px; }
+  figcaption .title { font-weight: 600; color: var(--text-primary); display: block; margin-bottom: 2px; }
+
+  /* Plotly charts (funding gap + trend decomposition): Plotly renders its own axes,
+     legend, tooltip, and modebar (zoom/pan/autoscale/download-as-PNG) -- no custom
+     chrome needed here beyond sizing the container it plots into. */
+  .plotly-chart { width: 100%; }
+
+  table.data-table {
+    width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 12px;
+  }
+  table.data-table th, table.data-table td {
+    padding: 6px 10px; border-bottom: 1px solid var(--hairline); text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  table.data-table th:first-child, table.data-table td:first-child { text-align: left; }
+  table.data-table th {
+    color: var(--text-secondary); font-weight: 600; font-size: 0.78rem;
+    position: sticky; top: 0; background: var(--surface);
+  }
+  table.data-table th .info { font-weight: 400; }
+  .table-scroll { max-height: 360px; overflow-y: auto; border: 1px solid var(--hairline); border-radius: 8px; }
+
+  .empty-state { color: var(--text-muted); font-size: 0.9rem; padding: 8px 0; }
+
+  .eval-intro { font-size: 0.85rem; color: var(--text-secondary); margin: 4px 0 16px; max-width: 70ch; }
+  .eval-results.hidden { display: none; }
+  .eval-caveat {
+    font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; max-width: 70ch;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Global Treasury Forecasting &amp; Liquidity Engine</h1>
+    <p>Prophet-based volume forecasting + liquidity-risk simulation. Calls the same API as
+       <a href="/docs">/docs</a> — this page just renders it. See
+       <code>app/README.md</code> for the full architecture.</p>
+  </header>
+
+  <div id="error-banner" class="error-banner hidden"></div>
+
+  <form id="forecast-form" class="card" novalidate>
+
+    <fieldset class="form-section">
+      <legend>What to forecast</legend>
+      <div class="field-row">
+        <div class="field">
+          <label for="dimension">Dimension<span class="info-slot" data-term="dimension"></span></label>
+          <select id="dimension">
+            <option value="receiver_country">Receiver country</option>
+            <option value="corridor">Corridor (sending &rarr; receiver)</option>
+            <option value="agent">Agent</option>
+          </select>
+        </div>
+
+        <div class="field" id="field-sending_country">
+          <label for="sending_country">Sending country<span class="info-slot" data-term="sending_country"></span></label>
+          <select id="sending_country"></select>
+        </div>
+
+        <div class="field" id="field-receiver_country">
+          <label for="receiver_country">Receiver country<span class="info-slot" data-term="receiver_country"></span></label>
+          <select id="receiver_country"></select>
+        </div>
+
+        <div class="field hidden" id="field-agent_name">
+          <label for="agent_name">Agent<span class="info-slot" data-term="agent_name"></span></label>
+          <select id="agent_name"></select>
+        </div>
+
+        <div class="field field-narrow">
+          <label for="horizon_days">Horizon (days)<span class="info-slot" data-term="horizon_days"></span></label>
+          <input type="number" id="horizon_days" min="1" max="365" value="10">
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset class="form-section">
+      <legend>Funding baseline</legend>
+      <div class="baseline-layout">
+        <div class="field field-medium">
+          <label for="baseline_funding_level">Baseline funding level (USD)<span class="info-slot" data-term="baseline_funding_level"></span></label>
+          <input type="number" id="baseline_funding_level" min="0" step="1000" value="50000">
+        </div>
+        <div class="baseline-suggest">
+          <span class="baseline-suggest-label">Auto-fill from history<span class="info-slot" data-term="baseline_suggestion"></span></span>
+          <div class="baseline-suggest-row">
+            <span>Last</span>
+            <input type="number" id="baseline_window_days" min="1" max="365" value="30" aria-label="Window (days)">
+            <span>days,</span>
+            <select id="baseline_method" aria-label="Auto-fill method">
+              <option value="average">Average</option>
+              <option value="weighted_average">Weighted average</option>
+              <option value="median">Median</option>
+            </select>
+            <button type="button" id="baseline-suggest-btn">Suggest</button>
+          </div>
+          <div class="baseline-suggest-result" id="baseline-suggest-result"></div>
+        </div>
+      </div>
+    </fieldset>
+
+    <details class="advanced">
+      <summary>Advanced settings</summary>
+      <div class="advanced-body">
+
+        <fieldset class="adv-group">
+          <legend>Model</legend>
+          <div class="adv-grid">
+            <div class="field">
+              <label for="growth">Growth<span class="info-slot" data-term="growth"></span></label>
+              <select id="growth">
+                <option value="linear">Linear</option>
+                <option value="flat">Flat</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="interval_width">Interval width (0&ndash;1)<span class="info-slot" data-term="interval_width"></span></label>
+              <input type="number" id="interval_width" min="0.01" max="0.99" step="0.05" value="0.8">
+            </div>
+            <div class="field">
+              <label for="safety_buffer_pct">Safety buffer % (10 = +10%)<span class="info-slot" data-term="safety_buffer_pct"></span></label>
+              <input type="number" id="safety_buffer_pct" min="0" step="1" value="0">
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="adv-group">
+          <legend>Seasonality &amp; events</legend>
+          <div class="adv-grid">
+            <div class="field">
+              <label>Seasonality<span class="info-slot" data-term="seasonality"></span></label>
+              <div class="checkbox-stack">
+                <div class="checkbox-row"><input type="checkbox" id="seasonality_weekly" checked><label for="seasonality_weekly">Weekly</label></div>
+                <div class="checkbox-row"><input type="checkbox" id="seasonality_yearly" checked><label for="seasonality_yearly">Yearly</label></div>
+                <div class="checkbox-row"><input type="checkbox" id="seasonality_daily"><label for="seasonality_daily">Daily</label></div>
+              </div>
+            </div>
+            <div class="field">
+              <label>Salary week<span class="info-slot" data-term="include_salary_week"></span></label>
+              <div class="checkbox-stack">
+                <div class="checkbox-row"><input type="checkbox" id="include_salary_week" checked><label for="include_salary_week">Include monthly salary-week event</label></div>
+              </div>
+            </div>
+            <div class="field">
+              <label>Trend decomposition chart<span class="info-slot" data-term="include_charts"></span></label>
+              <div class="checkbox-stack">
+                <div class="checkbox-row"><input type="checkbox" id="include_charts" checked><label for="include_charts">Show it at the foot of the page</label></div>
+              </div>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="adv-group">
+          <legend>Statuses counted as real funded volume<span class="info-slot" data-term="include_statuses"></span></legend>
+          <div id="status-checks" class="status-checks"></div>
+        </fieldset>
+
+      </div>
+
+      <fieldset class="adv-group lgbm-block">
+        <legend>Second model</legend>
+        <label class="lgbm-toggle" for="include_lightgbm">
+          <input type="checkbox" id="include_lightgbm">
+          <span class="lgbm-toggle-text">
+            <span class="lgbm-toggle-title">Add LightGBM comparison forecast<span class="info-slot" data-term="include_lightgbm"></span></span>
+            <span class="lgbm-note">
+              A second expected-volume column from a gradient-boosting model built on ~60
+              engineered lag, rolling and calendar features. <strong>Comparison only</strong>
+              &mdash; safety stock, shortfall and every headline figure stay Prophet-derived.
+              Adds roughly 1&ndash;2 seconds to the run.
+            </span>
+          </span>
+        </label>
+
+        <details class="lgbm-advanced hidden" id="lgbm-params">
+          <summary>LightGBM advanced settings<span class="lgbm-count">11 parameters</span></summary>
+          <div class="lgbm-body">
+            <p class="lgbm-defaults-note">
+              Defaults are tuned for a single corridor&rsquo;s ~900 days of history against
+              ~60 features &mdash; a small sample, so the model is deliberately shallow and
+              regularised. Leave these alone unless you are deliberately experimenting.
+            </p>
+
+            <fieldset class="lgbm-group">
+              <legend>Boosting</legend>
+              <div class="lgbm-grid">
+                <div class="field">
+                  <label for="lgbm_num_boost_round">Boosting rounds<span class="info-slot" data-term="lgbm_num_boost_round"></span></label>
+                  <input type="number" id="lgbm_num_boost_round" class="lgbm-input" step="10" value="300" inputmode="numeric">
+                  <span class="field-error" id="err_lgbm_num_boost_round"></span>
+                </div>
+                <div class="field">
+                  <label for="lgbm_learning_rate">Learning rate<span class="info-slot" data-term="lgbm_learning_rate"></span></label>
+                  <input type="number" id="lgbm_learning_rate" class="lgbm-input" step="0.01" value="0.05" inputmode="decimal">
+                  <span class="field-error" id="err_lgbm_learning_rate"></span>
+                </div>
+              </div>
+            </fieldset>
+
+            <fieldset class="lgbm-group">
+              <legend>Tree shape</legend>
+              <div class="lgbm-grid">
+                <div class="field">
+                  <label for="lgbm_num_leaves">Num leaves<span class="info-slot" data-term="lgbm_num_leaves"></span></label>
+                  <input type="number" id="lgbm_num_leaves" class="lgbm-input" step="1" value="31" inputmode="numeric">
+                  <span class="field-error" id="err_lgbm_num_leaves"></span>
+                </div>
+                <div class="field">
+                  <label for="lgbm_max_depth">Max depth<span class="info-slot" data-term="lgbm_max_depth"></span></label>
+                  <input type="number" id="lgbm_max_depth" class="lgbm-input" step="1" value="6" inputmode="numeric">
+                  <span class="field-error" id="err_lgbm_max_depth"></span>
+                </div>
+                <div class="field">
+                  <label for="lgbm_min_data_in_leaf">Min data in leaf<span class="info-slot" data-term="lgbm_min_data_in_leaf"></span></label>
+                  <input type="number" id="lgbm_min_data_in_leaf" class="lgbm-input" step="1" value="20" inputmode="numeric">
+                  <span class="field-error" id="err_lgbm_min_data_in_leaf"></span>
+                </div>
+              </div>
+            </fieldset>
+
+            <fieldset class="lgbm-group">
+              <legend>Sampling</legend>
+              <div class="lgbm-grid">
+                <div class="field">
+                  <label for="lgbm_feature_fraction">Feature fraction<span class="info-slot" data-term="lgbm_feature_fraction"></span></label>
+                  <input type="number" id="lgbm_feature_fraction" class="lgbm-input" step="0.05" value="0.85" inputmode="decimal">
+                  <span class="field-error" id="err_lgbm_feature_fraction"></span>
+                </div>
+                <div class="field">
+                  <label for="lgbm_bagging_fraction">Bagging fraction<span class="info-slot" data-term="lgbm_bagging_fraction"></span></label>
+                  <input type="number" id="lgbm_bagging_fraction" class="lgbm-input" step="0.05" value="0.8" inputmode="decimal">
+                  <span class="field-error" id="err_lgbm_bagging_fraction"></span>
+                </div>
+                <div class="field">
+                  <label for="lgbm_bagging_freq">Bagging frequency<span class="info-slot" data-term="lgbm_bagging_freq"></span></label>
+                  <input type="number" id="lgbm_bagging_freq" class="lgbm-input" step="1" value="1" inputmode="numeric">
+                  <span class="field-error" id="err_lgbm_bagging_freq"></span>
+                </div>
+              </div>
+            </fieldset>
+
+            <fieldset class="lgbm-group">
+              <legend>Regularisation &amp; reproducibility</legend>
+              <div class="lgbm-grid">
+                <div class="field">
+                  <label for="lgbm_lambda_l1">Lambda L1<span class="info-slot" data-term="lgbm_lambda_l1"></span></label>
+                  <input type="number" id="lgbm_lambda_l1" class="lgbm-input" step="0.1" value="0" inputmode="decimal">
+                  <span class="field-error" id="err_lgbm_lambda_l1"></span>
+                </div>
+                <div class="field">
+                  <label for="lgbm_lambda_l2">Lambda L2<span class="info-slot" data-term="lgbm_lambda_l2"></span></label>
+                  <input type="number" id="lgbm_lambda_l2" class="lgbm-input" step="0.1" value="1" inputmode="decimal">
+                  <span class="field-error" id="err_lgbm_lambda_l2"></span>
+                </div>
+                <div class="field">
+                  <label for="lgbm_random_state">Random seed<span class="info-slot" data-term="lgbm_random_state"></span></label>
+                  <input type="number" id="lgbm_random_state" class="lgbm-input" step="1" value="42" inputmode="numeric">
+                  <span class="field-error" id="err_lgbm_random_state"></span>
+                </div>
+              </div>
+            </fieldset>
+
+            <div class="lgbm-actions">
+              <button type="button" id="lgbm-reset" class="secondary-btn">Reset to defaults</button>
+              <span class="lgbm-reset-hint" id="lgbm-dirty-hint"></span>
+            </div>
+          </div>
+        </details>
+      </fieldset>
+    </details>
+
+    <div class="run-row">
+      <button type="submit" id="run-btn">Run forecast</button>
+      <span class="spinner" id="spinner"></span>
+      <span class="run-status" id="run-status"></span>
+    </div>
+  </form>
+
+  <div id="results" class="results hidden">
+    <div class="meta-line" id="meta-line"></div>
+
+    <div class="stat-grid" id="stat-grid"></div>
+
+    <div class="charts-grid" id="charts-grid"></div>
+
+    <div class="card">
+      <details>
+        <summary>Day-by-day forecast data</summary>
+        <div class="table-scroll">
+          <table class="data-table" id="data-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Weekday</th>
+                <th>Forecast (yhat)<span class="info-slot" data-term="yhat"></span></th>
+                <th class="lgbm-col hidden">LightGBM<span class="info-slot" data-term="yhat_lightgbm"></span></th>
+                <th>Lower<span class="info-slot" data-term="yhat_range"></span></th>
+                <th>Upper<span class="info-slot" data-term="yhat_range"></span></th>
+                <th>Safety stock<span class="info-slot" data-term="safety_stock"></span></th>
+                <th>Daily shortfall<span class="info-slot" data-term="daily_shortfall"></span></th>
+                <th>Cumulative shortfall<span class="info-slot" data-term="cumulative_shortfall"></span></th>
+                <th>Liquidity/volume<span class="info-slot" data-term="liquidity_to_volume_ratio"></span></th>
+              </tr>
+            </thead>
+            <tbody id="data-table-body"></tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <details class="card" id="eval-card">
+    <summary>Evaluate forecast accuracy (backtest)<span class="info-slot" data-term="evaluate_accuracy"></span></summary>
+    <p class="eval-intro">
+      Hides the most recent days of real history, refits on everything before that,
+      forecasts the hidden window, and compares the forecast against what actually
+      happened &mdash; using the same dimension/filters and advanced settings selected
+      above. A second model fit, so this is a separate check you run on demand, not part
+      of every forecast.
+    </p>
+    <div class="field-row">
+      <div class="field">
+        <label for="eval_days">Days to hold out<span class="info-slot" data-term="eval_days"></span></label>
+        <input type="number" id="eval_days" min="7" max="180" value="30">
+      </div>
+      <div class="run-row" style="margin-top: 0;">
+        <button type="button" id="evaluate-btn">Run backtest</button>
+        <span class="spinner" id="eval-spinner"></span>
+        <span class="run-status" id="eval-status"></span>
+      </div>
+    </div>
+
+    <div id="eval-error" class="error-banner hidden"></div>
+
+    <div id="eval-results" class="eval-results hidden">
+      <div class="meta-line" id="eval-meta-line"></div>
+      <div class="stat-grid" id="eval-stat-grid"></div>
+      <div class="charts-grid" id="eval-charts-grid"></div>
+      <p class="eval-caveat">A single held-out window is itself only a sample &mdash; on a
+        thin or spiky corridor with little history, one backtest window can look better
+        or worse than the model's true long-run accuracy. Treat this as a useful signal,
+        not a guarantee.</p>
+    </div>
+  </details>
+
+  <!-- Prophet's own decomposition. Interpretive rather than decision-driving, so it sits
+       below the forecast, the data table and the accuracy backtest. -->
+  <div id="trend-section" class="hidden">
+    <div class="charts-grid" id="trend-grid"></div>
+  </div>
+
+  <!-- Reference material: read once to learn the vocabulary, then rarely again. Kept at
+       the foot of the page so it never sits between the operator and the numbers. -->
+  <details class="card" id="glossary-card">
+    <summary>What do these numbers mean? (glossary)</summary>
+    <div class="glossary-grid" id="glossary-grid"></div>
+  </details>
+</div>
+
+<!-- Self-hosted (not a CDN) so this page needs no external network access; see the
+     comment above the Plotly-related functions below for why. -->
+<script src="plotly-cartesian.min.js"></script>
+<script>
+const API = ""; // same-origin -- served by the same FastAPI app
+
+function el(id) { return document.getElementById(id); }
+
+// ---- Glossary --------------------------------------------------------------
+// Single source of truth for every field/metric explanation -- feeds both the
+// inline info-icon tooltips and the full "what do these numbers mean" section,
+// so the two never drift apart.
+const GLOSSARY = {
+  dimension: ["Dimension",
+    "What to forecast: one receiving country (all corridors combined), one specific " +
+    "sending → receiving corridor, or one payout agent across every corridor it serves."],
+  sending_country: ["Sending country",
+    "The country the transfer originates from. Only used when Dimension is Corridor."],
+  receiver_country: ["Receiver country",
+    "The country the payout is made in."],
+  agent_name: ["Agent",
+    "The exchange house / payout agent to forecast for, across every corridor it serves."],
+  horizon_days: ["Horizon (days)",
+    "How many days ahead to forecast. The forecast starts the day after the most recent " +
+    "transaction on record for this selection — not necessarily today."],
+  baseline_funding_level: ["Baseline funding level",
+    "The amount of liquidity you plan to have available each day. The engine compares this " +
+    "against the risk-adjusted requirement to flag shortfalls — raise it to see how many " +
+    "shortfall days disappear. Not calculated automatically — type a number, or use " +
+    "“Suggest” below to fill it from actual trailing history."],
+  baseline_suggestion: ["Auto-fill methods",
+    "Average: plain mean of the trailing window. Weighted average: recency-weighted " +
+    "(EWMA) — recent days count more than older ones in the same window. Median: the " +
+    "middle value, resistant to one unusually large day — often a better fit than the " +
+    "mean for a thin, spiky corridor. All three use the corridor's own most recent " +
+    "history (not today's date) and the same “statuses counted” setting as the forecast " +
+    "itself."],
+  safety_buffer_pct: ["Safety buffer %",
+    "An extra cushion added on top of the model's own risk-adjusted estimate. 10 means +10% " +
+    "more margin, beyond what the model already builds in."],
+  growth: ["Growth",
+    "How the model treats the underlying trend. Linear = the trend can keep rising or " +
+    "falling. Flat = no trend at all, only recurring seasonal/holiday patterns — better " +
+    "for a mature, stable corridor whose volume has levelled off."],
+  interval_width: ["Interval width",
+    "How wide the model's expected range (Lower–Upper) should be. 0.8 means the model " +
+    "expects the actual value to land inside that range about 80% of the time. Higher = a " +
+    "wider, more cautious range; lower = a narrower, tighter one."],
+  seasonality: ["Seasonality",
+    "Which repeating patterns the model looks for. Weekly = day-of-week effects (e.g. " +
+    "quieter weekends). Yearly = annual patterns (e.g. festival seasons). Daily = " +
+    "within-a-day patterns — not meaningful here since volume is already totalled per " +
+    "day, so it's off by default."],
+  include_salary_week: ["Salary week",
+    "Adds a recurring end-of-month “payday” spike to the model. Remittance volume " +
+    "reliably jumps around salary week regardless of public holidays, so this catches a " +
+    "pattern holiday calendars miss."],
+  include_lightgbm: ["LightGBM comparison",
+    "Runs a second forecast with a different kind of model — gradient-boosted trees over " +
+    "about 60 engineered features (recent volume at various lags, rolling averages and " +
+    "spread, day-of-week, payday position, holiday proximity). It gives a genuinely " +
+    "independent view: where the two models agree, the forecast is on firmer ground; " +
+    "where they diverge sharply, treat the corridor as uncertain and check it with " +
+    "“Evaluate forecast accuracy”. It is a second opinion only — safety stock, shortfall " +
+    "and every headline figure stay Prophet-derived, because Prophet's uncertainty band " +
+    "is the calibrated one. Costs about 1–2 extra seconds."],
+  yhat_lightgbm: ["LightGBM forecast",
+    "The LightGBM model's expected volume for this day, next to Prophet's. It has no " +
+    "uncertainty band and drives no funding number. Because it works from recent history " +
+    "it must forecast one day at a time, feeding each prediction into the next, so it " +
+    "gets less reliable further into the horizon than Prophet does."],
+  lgbm_num_boost_round: ["Boosting rounds",
+    "How many trees to build. More rounds fit the history more closely; past a few " +
+    "hundred on a single corridor that increasingly means fitting noise rather than " +
+    "signal. Pair a lower learning rate with more rounds."],
+  lgbm_learning_rate: ["Learning rate",
+    "How much each tree corrects the ones before it. Lower is more cautious and usually " +
+    "generalises better, but needs more boosting rounds to reach the same fit."],
+  lgbm_num_leaves: ["Num leaves",
+    "Maximum leaves per tree — the main capacity dial. Higher lets the model express " +
+    "finer distinctions, but a corridor has only ~900 days of history, so raising this " +
+    "far is the quickest way to memorise individual days instead of learning a pattern."],
+  lgbm_max_depth: ["Max depth",
+    "How deep a tree may grow, i.e. how many features can combine along one path. " +
+    "Keeping it modest is a guard against over-complex rules on short histories."],
+  lgbm_min_data_in_leaf: ["Min data in leaf",
+    "Fewest days allowed in any leaf. Raising it is the bluntest and most reliable way " +
+    "to stop the model building a rule around one unusual day."],
+  lgbm_feature_fraction: ["Feature fraction",
+    "Share of the ~60 features each tree may consider. Below 1.0 forces variety between " +
+    "trees, which matters here because the lag and rolling features overlap heavily."],
+  lgbm_bagging_fraction: ["Bagging fraction",
+    "Share of days sampled for each tree. Below 1.0 adds robustness. Needs bagging " +
+    "frequency of at least 1 to have any effect."],
+  lgbm_bagging_freq: ["Bagging frequency",
+    "Re-sample the days every N rounds. 0 turns row sampling off entirely, which also " +
+    "makes bagging fraction inert."],
+  lgbm_lambda_l1: ["Lambda L1",
+    "Penalty that pushes marginal parts of the model to zero, dropping weak effects " +
+    "rather than shrinking them. Left at 0 by default."],
+  lgbm_lambda_l2: ["Lambda L2",
+    "Penalty that shrinks the model's strength of response. The main defence against " +
+    "overfitting at this history length, which is why it defaults to 1 rather than 0."],
+  lgbm_random_state: ["Random seed",
+    "Fixes the random feature and row sampling, so running the same request twice gives " +
+    "the same LightGBM numbers. Change it to see how sensitive the result is to that " +
+    "randomness."],
+  include_charts: ["Trend decomposition chart",
+    "Whether to also render Prophet's trend/seasonality/holiday breakdown as a chart below " +
+    "(a static image from the model). The interactive funding-gap chart above always shows " +
+    "regardless of this setting."],
+  include_statuses: ["Statuses counted",
+    "Which transaction outcomes count as real, funded volume. “Payment” " +
+    "(completed) is the safe default — cancelled, failed, expired, or compliance-held " +
+    "transactions never actually moved money and shouldn't count toward what you need to fund."],
+  evaluate_accuracy: ["Evaluate forecast accuracy",
+    "A backtest: hides the most recent days of real history, refits the model on " +
+    "everything before that, forecasts the hidden window, and compares against what " +
+    "actually happened. Answers “how much should I trust this forecast” for the " +
+    "currently selected settings."],
+  eval_days: ["Days to hold out",
+    "How many of the most recent days to hide and treat as a test window. Matching this " +
+    "to the Horizon you actually plan to forecast gives the most relevant answer."],
+  eval_mape: ["MAPE",
+    "Mean absolute percentage error &mdash; on average, how far off the forecast was from " +
+    "what actually happened, as a percentage. Lower is better. Excludes any zero-volume " +
+    "day in the test window, since percentage error is undefined there (see the excluded-" +
+    "days note next to the value)."],
+  eval_rmse: ["RMSE",
+    "Root mean squared error, in the same units as transaction volume (USD) &mdash; " +
+    "penalizes large misses more heavily than small ones. Lower is better. Always " +
+    "computed over every day in the test window, including zero-volume days."],
+  eval_interval_coverage: ["Interval coverage",
+    "The percent of test days where the actual volume landed inside the model's own " +
+    "Lower&ndash;Upper range. Compare against Interval width (e.g. 80%) &mdash; well " +
+    "below that target means the model's stated uncertainty is too narrow to trust as-is."],
+  eval_safety_stock_coverage: ["Safety stock coverage",
+    "The percent of test days where actual volume was within what Safety stock would " +
+    "have funded &mdash; the more directly actionable number, since it answers “would " +
+    "the funding plan actually have been enough” rather than just checking the model's " +
+    "own stated uncertainty."],
+  eval_naive_baseline: ["vs. naive baseline",
+    "A flat prediction &mdash; the trailing average volume, held constant across the " +
+    "whole test window &mdash; used as a sanity check. If Prophet doesn't beat “just fund " +
+    "the recent average every day,” the model isn't earning its keep for this selection."],
+  total_shortfall: ["Total shortfall",
+    "The sum of every day's funding gap across the whole forecast period — the total " +
+    "extra liquidity you'd need if the baseline funding level doesn't change."],
+  avg_daily_requirement: ["Avg daily requirement",
+    "The model's average expected transaction volume per day — the typical amount, not " +
+    "the cautious/risk-adjusted one (that's Safety stock)."],
+  safety_stock_ratio: ["Safety stock ratio",
+    "Risk-adjusted funding requirement divided by expected volume. 1.6x means treasury " +
+    "should hold about 1.6 times the average expected volume in reserve to safely cover " +
+    "spikes. A very high ratio (well above ~2x) usually signals a thin, spiky corridor " +
+    "rather than a modeling problem."],
+  peak_demand_day: ["Peak demand day",
+    "The single day in the forecast horizon with the largest funding gap versus your " +
+    "baseline — the day most likely to cause a shortfall if funding isn't increased."],
+  days_with_shortfall: ["Days with shortfall",
+    "How many days in the forecast period the baseline funding level falls short of the " +
+    "risk-adjusted requirement."],
+  yhat: ["Forecast (yhat)",
+    "Prophet's expected, most-likely transaction volume for that day."],
+  yhat_range: ["Lower / Upper",
+    "The model's expected range for that day — actual volume is expected to land " +
+    "between these most of the time. Width is controlled by Interval width."],
+  safety_stock: ["Safety stock",
+    "The risk-adjusted funding recommended for that day: the model's upper estimate, plus " +
+    "any Safety buffer % you've added. This is what you'd want available, not just the " +
+    "average forecast."],
+  daily_shortfall: ["Daily shortfall",
+    "How much the baseline funding level falls short of that day's safety stock. Zero means " +
+    "the baseline already covers it."],
+  cumulative_shortfall: ["Cumulative shortfall",
+    "The running total of daily shortfalls, added up from the start of the forecast period " +
+    "through that day."],
+  liquidity_to_volume_ratio: ["Liquidity/volume",
+    "Baseline funding level divided by that day's forecasted volume — lets you compare " +
+    "how well-funded very different corridors are on the same scale. Shown as — on days " +
+    "with near-zero forecasted volume, where the ratio isn't meaningful."],
+};
+
+// ---- Tooltip portal --------------------------------------------------------
+// One shared element appended to <body>, positioned via getBoundingClientRect() on
+// hover/focus of any .info icon -- see the CSS comment on #info-tooltip-portal for why
+// (escapes any ancestor's overflow:hidden/auto, which a CSS-only :hover tooltip can't).
+
+let tooltipPortal = null;
+
+function ensureTooltipPortal() {
+  if (!tooltipPortal) {
+    tooltipPortal = document.createElement("div");
+    tooltipPortal.id = "info-tooltip-portal";
+    tooltipPortal.setAttribute("role", "tooltip");
+    document.body.appendChild(tooltipPortal);
+  }
+  return tooltipPortal;
+}
+
+function showInfoTooltip(iconEl, text) {
+  const portal = ensureTooltipPortal();
+  portal.textContent = text;
+  portal.classList.add("visible");
+
+  const iconRect = iconEl.getBoundingClientRect();
+  const portalRect = portal.getBoundingClientRect(); // width is fixed by CSS; height depends on text
+  const gap = 8;
+
+  // Prefer opening upward; flip to downward if there's no room above the viewport --
+  // covers both the "near the top of the page" case and any clipping-ancestor case,
+  // since this is positioned relative to the viewport, not any ancestor's box.
+  let top = iconRect.top - portalRect.height - gap;
+  if (top < gap) {
+    top = iconRect.bottom + gap;
+  }
+  let left = iconRect.left + iconRect.width / 2 - portalRect.width / 2;
+  left = Math.max(gap, Math.min(left, window.innerWidth - portalRect.width - gap));
+
+  portal.style.top = top + "px";
+  portal.style.left = left + "px";
+}
+
+function hideInfoTooltip() {
+  if (tooltipPortal) tooltipPortal.classList.remove("visible");
+}
+
+function infoIcon(key) {
+  const entry = GLOSSARY[key];
+  const span = document.createElement("span");
+  span.className = "info";
+  span.tabIndex = 0;
+  span.textContent = "i";
+  if (!entry) return span;
+  const [term, def] = entry;
+  span.setAttribute("aria-label", term + ": " + def);
+  span.addEventListener("mouseenter", () => showInfoTooltip(span, def));
+  span.addEventListener("mouseleave", hideInfoTooltip);
+  span.addEventListener("focus", () => showInfoTooltip(span, def));
+  span.addEventListener("blur", hideInfoTooltip);
+  return span;
+}
+
+function wireInfoIcons() {
+  document.querySelectorAll(".info-slot").forEach(slot => {
+    slot.replaceWith(infoIcon(slot.dataset.term));
+  });
+}
+
+function renderGlossary() {
+  const grid = el("glossary-grid");
+  Object.values(GLOSSARY).forEach(([term, def]) => {
+    const dt = document.createElement("div");
+    dt.className = "term";
+    dt.textContent = term;
+    const dd = document.createElement("div");
+    dd.className = "def";
+    dd.textContent = def;
+    grid.appendChild(dt);
+    grid.appendChild(dd);
+  });
+}
+
+function showError(msg) {
+  const banner = el("error-banner");
+  banner.textContent = msg;
+  banner.classList.remove("hidden");
+}
+function clearError() {
+  el("error-banner").classList.add("hidden");
+}
+
+function fmtUSD(n) {
+  if (n === null || n === undefined || Number.isNaN(n)) return "—";
+  const sign = n < 0 ? "-" : "";
+  const abs = Math.abs(n);
+  if (abs >= 1e6) return sign + "$" + (abs / 1e6).toFixed(2) + "M";
+  if (abs >= 1e3) return sign + "$" + (abs / 1e3).toFixed(1) + "K";
+  return sign + "$" + abs.toFixed(2);
+}
+function fmtUSDFull(n) {
+  if (n === null || n === undefined || Number.isNaN(n)) return "—";
+  return n.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 2 });
+}
+function fmtNum(n, decimals) {
+  if (n === null || n === undefined || Number.isNaN(n)) return "—";
+  return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: decimals ?? 2 });
+}
+
+// ---- Load meta / populate filters -----------------------------------------
+
+let corridorMap = {}; // sending_country -> Set(receiver_country)
+
+async function loadMeta() {
+  const [sending, receiver, agents, corridors, statuses] = await Promise.all([
+    fetch(API + "/api/v1/meta/sending-countries").then(r => r.json()),
+    fetch(API + "/api/v1/meta/receiver-countries").then(r => r.json()),
+    fetch(API + "/api/v1/meta/agents").then(r => r.json()),
+    fetch(API + "/api/v1/meta/corridors").then(r => r.json()),
+    fetch(API + "/api/v1/meta/statuses").then(r => r.json()),
+  ]);
+
+  corridors.forEach(c => {
+    if (!corridorMap[c.sending_country]) corridorMap[c.sending_country] = new Set();
+    corridorMap[c.sending_country].add(c.receiver_country);
+  });
+
+  fillSelect("sending_country", sending);
+  fillSelect("receiver_country", receiver);
+  fillSelect("agent_name", agents);
+
+  const statusBox = el("status-checks");
+  statuses.forEach(s => {
+    const wrap = document.createElement("label");
+    wrap.className = "checkbox-row";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.value = s;
+    cb.className = "status-check";
+    cb.checked = (s === "Payment");
+    wrap.appendChild(cb);
+    wrap.appendChild(document.createTextNode(s));
+    statusBox.appendChild(wrap);
+  });
+
+  // A default that's immediately useful -- pick Nepal if present, else first option.
+  if (receiver.includes("NEPAL")) el("receiver_country").value = "NEPAL";
+  updateDimensionFields();
+}
+
+function fillSelect(id, values) {
+  const select = el(id);
+  select.innerHTML = "";
+  values.forEach(v => {
+    const opt = document.createElement("option");
+    opt.value = v; opt.textContent = v;
+    select.appendChild(opt);
+  });
+}
+
+function updateDimensionFields() {
+  const dim = el("dimension").value;
+  el("field-sending_country").classList.toggle("hidden", dim !== "corridor");
+  el("field-receiver_country").classList.toggle("hidden", dim === "agent");
+  el("field-agent_name").classList.toggle("hidden", dim !== "agent");
+  filterReceiversForCorridor();
+}
+
+function filterReceiversForCorridor() {
+  if (el("dimension").value !== "corridor") return;
+  const sending = el("sending_country").value;
+  const allowed = corridorMap[sending];
+  if (!allowed) return;
+  const receiverSelect = el("receiver_country");
+  const current = receiverSelect.value;
+  [...receiverSelect.options].forEach(opt => {
+    opt.hidden = !allowed.has(opt.value);
+  });
+  if (!allowed.has(current)) {
+    const firstAllowed = [...receiverSelect.options].find(o => !o.hidden);
+    if (firstAllowed) receiverSelect.value = firstAllowed.value;
+  }
+}
+
+el("dimension").addEventListener("change", updateDimensionFields);
+el("sending_country").addEventListener("change", filterReceiversForCorridor);
+
+// ---- Run forecast ----------------------------------------------------------
+
+// Shared by the forecast request and the baseline-suggestion request -- both are
+// scoped to "whichever corridor/country/agent is currently selected", so this lives
+// in one place rather than being rebuilt slightly differently in two spots.
+function buildDimensionFilters() {
+  const dim = el("dimension").value;
+  const filters = {
+    dimension: dim,
+    include_statuses: [...document.querySelectorAll(".status-check:checked")].map(cb => cb.value),
+  };
+  if (dim === "receiver_country" || dim === "corridor") {
+    filters.receiver_country = el("receiver_country").value;
+  }
+  if (dim === "corridor") {
+    filters.sending_country = el("sending_country").value;
+  }
+  if (dim === "agent") {
+    filters.agent_name = el("agent_name").value;
+  }
+  return filters;
+}
+
+function dimensionFiltersError() {
+  const dim = el("dimension").value;
+  if (dim === "corridor" && (!el("sending_country").value || !el("receiver_country").value)) {
+    return "Corridor requires both a sending and a receiver country.";
+  }
+  return null;
+}
+
+// Model-shaping knobs shared by /forecast/run and /forecast/evaluate -- both backtest
+// and forecast should reflect the same settings the user configured, so this is one
+// function instead of two slightly-different copies.
+function buildModelConfigFields() {
+  return {
+    safety_buffer_pct: (parseFloat(el("safety_buffer_pct").value) || 0) / 100,
+    growth: el("growth").value,
+    interval_width: parseFloat(el("interval_width").value) || 0.8,
+    seasonality: {
+      daily: el("seasonality_daily").checked,
+      weekly: el("seasonality_weekly").checked,
+      yearly: el("seasonality_yearly").checked,
+    },
+    holidays: {
+      include_salary_week: el("include_salary_week").checked,
+    },
+  };
+}
+
+// LightGBM tuning, read straight off the Advanced settings inputs. Deliberately NOT part
+// of buildModelConfigFields(): that is shared with /forecast/evaluate, which backtests
+// the calibrated Prophet band only and has no include_lightgbm field to receive this.
+function buildLightGBMFields() {
+  const num = (id, fallback) => {
+    const v = parseFloat(el(id).value);
+    return Number.isFinite(v) ? v : fallback;
+  };
+  return {
+    include_lightgbm: el("include_lightgbm").checked,
+    lightgbm: {
+      num_boost_round: Math.round(num("lgbm_num_boost_round", 300)),
+      learning_rate: num("lgbm_learning_rate", 0.05),
+      num_leaves: Math.round(num("lgbm_num_leaves", 31)),
+      max_depth: Math.round(num("lgbm_max_depth", 6)),
+      min_data_in_leaf: Math.round(num("lgbm_min_data_in_leaf", 20)),
+      feature_fraction: num("lgbm_feature_fraction", 0.85),
+      bagging_fraction: num("lgbm_bagging_fraction", 0.8),
+      bagging_freq: Math.round(num("lgbm_bagging_freq", 1)),
+      lambda_l1: num("lgbm_lambda_l1", 0),
+      lambda_l2: num("lgbm_lambda_l2", 1),
+      random_state: Math.round(num("lgbm_random_state", 42)),
+    },
+  };
+}
+
+function buildRequestBody() {
+  return {
+    ...buildDimensionFilters(),
+    horizon_days: parseInt(el("horizon_days").value, 10),
+    baseline_funding_level: parseFloat(el("baseline_funding_level").value) || 0,
+    include_charts: el("include_charts").checked,
+    ...buildModelConfigFields(),
+    ...buildLightGBMFields(),
+  };
+}
+
+// ---- LightGBM settings: visibility, validation, reset ------------------------
+// Enabling the comparison reveals a nested "LightGBM advanced settings" disclosure
+// rather than eleven inputs at once -- tuning is a rare need and shouldn't dominate a
+// panel whose other settings are single fields.
+//
+// Validation is done here in JS rather than with native min/max attributes, and that is
+// deliberate: this form carries `novalidate` because native constraint validation on a
+// field inside a collapsed <details> silently blocks submission with no visible error
+// (see app/README.md -- it was a real bug found with Playwright). These inputs sit
+// inside TWO nested collapsed <details>, so the same trap would be worse here. Instead
+// the rules below mirror LightGBMIn's Pydantic constraints exactly, and
+// validateLightGBM() opens whatever is collapsed before reporting a problem.
+const LGBM_RULES = {
+  lgbm_num_boost_round:  { label: "Boosting rounds",   int: true,  min: 10,  max: 5000 },
+  lgbm_learning_rate:    { label: "Learning rate",     int: false, min: 0,   max: 1, exclusiveMin: true },
+  lgbm_num_leaves:       { label: "Num leaves",        int: true,  min: 2,   max: 1024 },
+  lgbm_max_depth:        { label: "Max depth",         int: true,  min: 1,   max: 32 },
+  lgbm_min_data_in_leaf: { label: "Min data in leaf",  int: true,  min: 1,   max: 500 },
+  lgbm_feature_fraction: { label: "Feature fraction",  int: false, min: 0,   max: 1, exclusiveMin: true },
+  lgbm_bagging_fraction: { label: "Bagging fraction",  int: false, min: 0,   max: 1, exclusiveMin: true },
+  lgbm_bagging_freq:     { label: "Bagging frequency", int: true,  min: 0,   max: 50 },
+  lgbm_lambda_l1:        { label: "Lambda L1",         int: false, min: 0 },
+  lgbm_lambda_l2:        { label: "Lambda L2",         int: false, min: 0 },
+  lgbm_random_state:     { label: "Random seed",       int: true,  min: 0 },
+};
+
+const LGBM_DEFAULTS = {
+  lgbm_num_boost_round: 300, lgbm_learning_rate: 0.05, lgbm_num_leaves: 31,
+  lgbm_max_depth: 6, lgbm_min_data_in_leaf: 20, lgbm_feature_fraction: 0.85,
+  lgbm_bagging_fraction: 0.8, lgbm_bagging_freq: 1, lgbm_lambda_l1: 0,
+  lgbm_lambda_l2: 1, lgbm_random_state: 42,
+};
+
+// Returns an error string for one field, or null when it's fine.
+function lightGBMFieldError(id) {
+  const rule = LGBM_RULES[id];
+  const raw = el(id).value.trim();
+  if (raw === "") return `${rule.label} is required.`;
+  const value = Number(raw);
+  if (!Number.isFinite(value)) return `${rule.label} must be a number.`;
+  if (rule.int && !Number.isInteger(value)) return `${rule.label} must be a whole number.`;
+  if (rule.exclusiveMin && value <= rule.min) {
+    return `${rule.label} must be greater than ${rule.min}.`;
+  }
+  if (!rule.exclusiveMin && rule.min !== undefined && value < rule.min) {
+    return `${rule.label} must be at least ${rule.min}.`;
+  }
+  if (rule.max !== undefined && value > rule.max) {
+    return `${rule.label} must be ${rule.max} or less.`;
+  }
+  return null;
+}
+
+function paintLightGBMField(id) {
+  const message = lightGBMFieldError(id);
+  el(id).classList.toggle("invalid", Boolean(message));
+  const slot = el("err_" + id);
+  slot.textContent = message || "";
+  slot.classList.toggle("show", Boolean(message));
+  return message;
+}
+
+/** Validate every LightGBM input. Returns the first error message, or null.
+ *  Opens both enclosing <details> and focuses the offending field, so the user can
+ *  actually see what is wrong -- the failure mode that made native validation unusable
+ *  on this form. */
+function validateLightGBM() {
+  if (!el("include_lightgbm").checked) {
+    Object.keys(LGBM_RULES).forEach(id => {
+      el(id).classList.remove("invalid");
+      el("err_" + id).classList.remove("show");
+    });
+    return null;
+  }
+  let firstBadId = null;
+  let firstMessage = null;
+  Object.keys(LGBM_RULES).forEach(id => {
+    const message = paintLightGBMField(id);
+    if (message && !firstBadId) { firstBadId = id; firstMessage = message; }
+  });
+  if (firstBadId) {
+    document.querySelectorAll("details.advanced").forEach(d => { d.open = true; });
+    el("lgbm-params").open = true;
+    el(firstBadId).focus();
+  }
+  return firstMessage;
+}
+
+function refreshLightGBMDirtyHint() {
+  const changed = Object.entries(LGBM_DEFAULTS)
+    .filter(([id, value]) => Number(el(id).value) !== value).length;
+  el("lgbm-dirty-hint").textContent = changed
+    ? `${changed} parameter${changed === 1 ? "" : "s"} changed from defaults`
+    : "";
+}
+
+function syncLightGBMParamsVisibility() {
+  const on = el("include_lightgbm").checked;
+  el("lgbm-params").classList.toggle("hidden", !on);
+  if (!on) {
+    el("lgbm-params").open = false;  // collapse so re-enabling starts tidy
+    validateLightGBM();              // and clear any stale error styling
+  }
+}
+
+el("include_lightgbm").addEventListener("change", syncLightGBMParamsVisibility);
+el("lgbm-reset").addEventListener("click", () => {
+  Object.entries(LGBM_DEFAULTS).forEach(([id, value]) => { el(id).value = value; });
+  Object.keys(LGBM_RULES).forEach(paintLightGBMField);
+  refreshLightGBMDirtyHint();
+});
+Object.keys(LGBM_RULES).forEach(id => {
+  // Validate as the user types so a bad value is flagged at the point of entry, not
+  // only when they press Run.
+  el(id).addEventListener("input", () => { paintLightGBMField(id); refreshLightGBMDirtyHint(); });
+  el(id).addEventListener("blur", () => paintLightGBMField(id));
+});
+syncLightGBMParamsVisibility();
+refreshLightGBMDirtyHint();
+
+function buildEvalRequestBody() {
+  return {
+    ...buildDimensionFilters(),
+    eval_days: parseInt(el("eval_days").value, 10) || 30,
+    baseline_funding_level: parseFloat(el("baseline_funding_level").value) || 0,
+    ...buildModelConfigFields(),
+  };
+}
+
+// ---- Baseline auto-fill -----------------------------------------------------
+
+function setBaselineSuggestResult(text, isError) {
+  const node = el("baseline-suggest-result");
+  node.textContent = text;
+  node.classList.toggle("error", !!isError);
+}
+
+const BASELINE_METHOD_LABELS = {
+  average: "average",
+  weighted_average: "weighted average",
+  median: "median",
+};
+
+async function suggestBaseline() {
+  const filterError = dimensionFiltersError();
+  if (filterError) {
+    setBaselineSuggestResult(filterError, true);
+    return;
+  }
+
+  const body = {
+    ...buildDimensionFilters(),
+    method: el("baseline_method").value,
+    window_days: parseInt(el("baseline_window_days").value, 10) || 30,
+  };
+
+  const btn = el("baseline-suggest-btn");
+  btn.disabled = true;
+  setBaselineSuggestResult("Calculating…", false);
+
+  try {
+    const res = await fetch(API + "/api/v1/forecast/baseline-suggestion", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const detail = data.detail;
+      const msg = Array.isArray(detail)
+        ? detail.map(d => d.msg).join("; ")
+        : (detail || `Request failed with status ${res.status}`);
+      setBaselineSuggestResult(msg, true);
+      return;
+    }
+
+    el("baseline_funding_level").value = Math.round(data.value);
+    const methodLabel = BASELINE_METHOD_LABELS[data.method] || data.method;
+    const shortfallNote = data.window_days_used < data.window_days_requested
+      ? ` (only ${data.window_days_used} days of history available)`
+      : "";
+    setBaselineSuggestResult(
+      `Filled with ${fmtUSDFull(data.value)} — ${methodLabel} of ` +
+      `${data.window_start} to ${data.window_end}${shortfallNote}.`,
+      false
+    );
+  } catch (err) {
+    setBaselineSuggestResult("Network error: " + err.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+el("baseline-suggest-btn").addEventListener("click", suggestBaseline);
+
+// status: "good" | "warning" | "critical" -- shared by the shortfall badge and the new
+// evaluate-accuracy badges below, so the dot+color+label pattern lives in one place.
+function makeBadge(status, text) {
+  const badge = document.createElement("span");
+  badge.className = "badge badge-" + status;
+  const dot = document.createElement("span");
+  dot.className = "dot";
+  badge.appendChild(dot);
+  badge.appendChild(document.createTextNode(text));
+  return badge;
+}
+
+function statTile(label, value, sub, glossaryKey) {
+  const div = document.createElement("div");
+  div.className = "stat-tile";
+
+  const labelDiv = document.createElement("div");
+  labelDiv.className = "label";
+  labelDiv.appendChild(document.createTextNode(label));
+  if (glossaryKey) labelDiv.appendChild(infoIcon(glossaryKey));
+  div.appendChild(labelDiv);
+
+  const valueDiv = document.createElement("div");
+  valueDiv.className = "value";
+  if (value instanceof Node) valueDiv.appendChild(value); else valueDiv.textContent = value;
+  div.appendChild(valueDiv);
+
+  if (sub) {
+    const subDiv = document.createElement("div");
+    subDiv.className = "sub";
+    subDiv.textContent = sub;
+    div.appendChild(subDiv);
+  }
+  return div;
+}
+
+// ---- Plotly charts ----------------------------------------------------------
+// Both the funding-gap chart (built entirely client-side from data.forecast -- no
+// backend involvement) and the trend-decomposition chart (a Plotly figure the backend
+// renders from Prophet's own plot_components_plotly, sent as JSON, see
+// app/forecasting/charts.py) render through Plotly.js -- self-hosted
+// (plotly-cartesian.min.js, ~1.4MB, covers the scatter/line/area traces both charts
+// use) rather than a CDN, consistent with keeping this dashboard usable on a
+// corporate network with no external calls. Plotly supplies zoom (drag a box, or
+// double-click to reset), pan, autoscale, a "download as PNG" button, and a native
+// unified hover tooltip (hovermode: "x unified" -- one tooltip listing every series at
+// the hovered x, matching the house dataviz rule) for free -- replacing the
+// hand-rolled SVG chart + custom tooltip/legend/crosshair this dashboard used before.
+//
+// Trade-off worth knowing: the hand-rolled version had a bespoke keyboard interaction
+// (arrow keys + an aria-live region speaking each day's values). Plotly's own keyboard/
+// screen-reader support is not that tailored. The day-by-day data table below the
+// charts remains the full accessible fallback either way -- every value either chart
+// shows is also in that table, reachable without touching the chart at all.
+
+const PLOTLY_CONFIG = {
+  responsive: true,
+  displaylogo: false,
+  modeBarButtonsToRemove: ["lasso2d", "select2d"],
+};
+
+function getThemeColors() {
+  const style = getComputedStyle(document.documentElement);
+  const get = name => style.getPropertyValue(name).trim();
+  return {
+    surface: get("--surface"),
+    textPrimary: get("--text-primary"),
+    textSecondary: get("--text-secondary"),
+    textMuted: get("--text-muted"),
+    hairline: get("--hairline"),
+    accent: get("--accent"),
+    series2: get("--series-2"),
+    series3: get("--series-3"),
+    statusGood: get("--status-good"),
+    statusWarning: get("--status-warning"),
+    statusCritical: get("--status-critical"),
+  };
+}
+
+function hexToRgba(hex, alpha) {
+  const clean = hex.replace("#", "");
+  const bigint = parseInt(clean, 16);
+  const r = (bigint >> 16) & 255, g = (bigint >> 8) & 255, b = bigint & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+const PLOTLY_FONT = { family: "system-ui, -apple-system, Segoe UI, sans-serif" };
+
+function buildFundingGapFigure(rows, baseline) {
+  const colors = getThemeColors();
+  const dates = rows.map(r => r.ds);
+  const shortfallDays = rows.filter(r => r.daily_shortfall > 0);
+
+  const data = [
+    {
+      x: dates, y: rows.map(r => r.yhat_upper), name: "Upper",
+      type: "scatter", mode: "lines", line: { width: 0 },
+      hoverinfo: "skip", showlegend: false,
+    },
+    {
+      x: dates, y: rows.map(r => r.yhat_lower), name: "Range",
+      type: "scatter", mode: "lines", line: { width: 0 },
+      fill: "tonexty", fillcolor: hexToRgba(colors.accent, 0.15),
+      hoverinfo: "skip",
+    },
+    {
+      x: dates, y: rows.map(() => baseline), name: "Baseline",
+      type: "scatter", mode: "lines",
+      line: { color: colors.textMuted, width: 1.5, dash: "dot" },
+      hovertemplate: "Baseline: %{y:,.0f}<extra></extra>",
+    },
+    {
+      x: dates, y: rows.map(r => r.safety_stock), name: "Safety stock",
+      type: "scatter", mode: "lines",
+      line: { color: colors.series2, width: 2, dash: "dash" },
+      hovertemplate: "Safety stock: %{y:,.0f}<extra></extra>",
+    },
+    {
+      x: dates, y: rows.map(r => r.yhat), name: "Forecast",
+      type: "scatter", mode: "lines",
+      line: { color: colors.accent, width: 2.5 },
+      hovertemplate: "Forecast: %{y:,.0f}<extra></extra>",
+    },
+    // LightGBM's comparison line, added only when the model actually ran. Dashed and in
+    // its own colour so it reads as a second opinion on the Forecast line rather than
+    // another quantity like safety stock.
+    ...(rows.some(r => r.yhat_lightgbm != null) ? [{
+      x: dates, y: rows.map(r => (r.yhat_lightgbm != null ? r.yhat_lightgbm : null)),
+      name: "LightGBM", type: "scatter", mode: "lines",
+      line: { color: colors.series3, width: 2, dash: "dashdot" },
+      connectgaps: false,
+      hovertemplate: "LightGBM: %{y:,.0f}<extra></extra>",
+    }] : []),
+    {
+      x: shortfallDays.map(r => r.ds), y: shortfallDays.map(r => r.safety_stock),
+      name: "Shortfall day", type: "scatter", mode: "markers",
+      marker: { color: colors.statusCritical, size: 9, line: { color: colors.surface, width: 1.5 } },
+      hovertemplate: "Shortfall day<extra></extra>",
+    },
+  ];
+
+  const layout = {
+    height: 420,
+    // Top margin carries the legend; bottom only needs the axis + its title. Previously
+    // the legend sat at y:-0.25 -- about 100px below the plot at this height -- while the
+    // bottom margin was 70, so it rendered into the clipped region.
+    margin: { t: 46, r: 24, b: 56, l: 76 },
+    hovermode: "x unified",
+    legend: {
+      orientation: "h",
+      yanchor: "bottom", y: 1.02,   // just above the plot area, clear of the x-axis title
+      xanchor: "left", x: 0,
+      font: { size: 11 },
+      bgcolor: "rgba(0,0,0,0)",
+    },
+    paper_bgcolor: colors.surface,
+    plot_bgcolor: colors.surface,
+    font: { ...PLOTLY_FONT, color: colors.textSecondary, size: 12 },
+    xaxis: { title: "Date", gridcolor: colors.hairline, color: colors.textMuted },
+    yaxis: {
+      title: "Transaction Amount (USD)", tickformat: ",.0f",
+      gridcolor: colors.hairline, color: colors.textMuted,
+    },
+  };
+
+  return { data, layout };
+}
+
+// Prophet's figure comes pre-styled (Plotly's own default light theme); patch just the
+// chrome (background/grid/font) onto our current theme rather than re-coloring every
+// trace, which would mean assuming things about Prophet's own trace structure.
+function themeServerFigureLayout(layout, colors) {
+  const patched = {
+    ...layout,
+    paper_bgcolor: colors.surface,
+    plot_bgcolor: colors.surface,
+    font: { ...PLOTLY_FONT, ...(layout.font || {}), color: colors.textSecondary },
+    // Prophet's plot_components_plotly bakes an explicit width (900px) into the layout,
+    // which pins the figure to that size no matter how wide the card is -- it rendered
+    // ~170px short of its container. Drop the width and let it size to the container
+    // like every other chart here. `height` is deliberately KEPT: it's a genuine
+    // vertical sizing choice for a stack of four sub-plots, not a horizontal constraint.
+    width: undefined,
+    autosize: true,
+  };
+  delete patched.width;
+  Object.keys(patched).forEach(key => {
+    if (/^[xy]axis\d*$/.test(key)) {
+      patched[key] = {
+        ...patched[key],
+        gridcolor: colors.hairline, color: colors.textMuted, zerolinecolor: colors.hairline,
+      };
+    }
+  });
+  return patched;
+}
+
+function renderResults(data) {
+  const s = data.summary;
+  const m = data.meta;
+
+  // Reveal the results container BEFORE any Plotly.newPlot() call below. Plotly measures
+  // its container at plot time, and a display:none container measures zero -- so it fell
+  // back to its built-in 700px default and the chart sat at ~65% of the card width no
+  // matter how wide the window was. `responsive: true` doesn't rescue this: it only
+  // re-fits on window resize, which never fires just because an element became visible.
+  el("results").classList.remove("hidden");
+
+  el("meta-line").innerHTML =
+    `<strong>${m.dimension}</strong>` +
+    (m.sending_country ? ` &middot; sending: <code>${m.sending_country}</code>` : "") +
+    (m.receiver_country ? ` &middot; receiver: <code>${m.receiver_country}</code>` : "") +
+    (m.agent_name ? ` &middot; agent: <code>${m.agent_name}</code>` : "") +
+    ` &middot; ${m.history_days} days of history` +
+    ` &middot; counted statuses: <code>${m.include_statuses.join(", ")}</code>` +
+    (m.lightgbm_included ? `<span class="lgbm-badge">+ LightGBM comparison</span>` : "") +
+    // Requested but absent means it was skipped (thin history) or failed soft. Saying so
+    // is better than a silently missing column the user asked for.
+    (el("include_lightgbm").checked && !m.lightgbm_included
+      ? `<span class="lgbm-badge" title="Too little history after the lag warm-up, or the model failed. The Prophet forecast is unaffected.">LightGBM unavailable</span>`
+      : "");
+
+  const statGrid = el("stat-grid");
+  statGrid.innerHTML = "";
+
+  const shortfallBadge = makeBadge(
+    s.days_with_shortfall > 0 ? "critical" : "good",
+    s.days_with_shortfall > 0
+      ? `Shortfall on ${s.days_with_shortfall} of ${s.horizon_days} days`
+      : "Fully covered"
+  );
+
+  statGrid.appendChild(statTile("Total shortfall", fmtUSD(s.total_shortfall_usd), fmtUSDFull(s.total_shortfall_usd), "total_shortfall"));
+  statGrid.appendChild(statTile("Avg daily requirement", fmtUSD(s.avg_daily_requirement_usd), null, "avg_daily_requirement"));
+  statGrid.appendChild(statTile("Safety stock ratio", s.safety_stock_ratio !== null ? fmtNum(s.safety_stock_ratio, 2) + "x" : "—", null, "safety_stock_ratio"));
+  statGrid.appendChild(statTile("Peak demand day", s.peak_demand_date, fmtUSD(s.peak_demand_shortfall_usd) + " shortfall", "peak_demand_day"));
+  statGrid.appendChild(statTile("Days with shortfall", shortfallBadge, null, "days_with_shortfall"));
+  statGrid.appendChild(statTile("Baseline funding level", fmtUSD(s.baseline_funding_level_usd), null, "baseline_funding_level"));
+
+  const chartsGrid = el("charts-grid");
+  chartsGrid.innerHTML = "";
+  const trendGrid = el("trend-grid");
+  trendGrid.innerHTML = "";
+  el("trend-section").classList.add("hidden");  // re-shown below only if a figure arrives
+
+  // Funding-gap chart -- always shown, built entirely client-side from data.forecast
+  // (no server chart involved for this one at all).
+  const gapFigure = document.createElement("figure");
+  const gapBody = document.createElement("div");
+  gapBody.className = "plotly-chart";
+  gapFigure.appendChild(gapBody);
+  const gapCaption = document.createElement("figcaption");
+  const gapTitle = document.createElement("span");
+  gapTitle.className = "title";
+  gapTitle.textContent = "Funding gap analysis";
+  gapCaption.appendChild(gapTitle);
+  gapCaption.appendChild(document.createTextNode(
+    "Drag to zoom, double-click to reset, hover for exact values. Every number here is " +
+    "also in the data table below."
+  ));
+  gapFigure.appendChild(gapCaption);
+  chartsGrid.appendChild(gapFigure);
+  const gapFig = buildFundingGapFigure(data.forecast, s.baseline_funding_level_usd);
+  Plotly.newPlot(gapBody, gapFig.data, gapFig.layout, PLOTLY_CONFIG);
+
+  // Trend decomposition -- a Plotly figure the backend renders from Prophet's own
+  // plot_components_plotly (see app/forecasting/charts.py), sent as JSON. Interactive
+  // (zoom/pan/download) the same as the chart above, unlike the matplotlib PNG this
+  // used to be.
+  if (data.trend_decomposition) {
+    const fig = document.createElement("figure");
+    const body = document.createElement("div");
+    body.className = "plotly-chart";
+    fig.appendChild(body);
+    const cap = document.createElement("figcaption");
+    const t = document.createElement("span");
+    t.className = "title";
+    t.textContent = "Trend decomposition";
+    cap.appendChild(t);
+    cap.appendChild(document.createTextNode(
+      "Trend, weekly/yearly seasonality, and holiday effects Prophet extracted from the historical series."
+    ));
+    fig.appendChild(cap);
+    // Rendered into its own section at the very bottom of the page, not alongside the
+    // funding-gap chart: it's Prophet's internal decomposition -- useful for
+    // interpretation, but nobody makes a funding decision from it, so it shouldn't sit
+    // between the gap analysis and the day-by-day numbers.
+    trendGrid.appendChild(fig);
+    el("trend-section").classList.remove("hidden");
+
+    const themedLayout = themeServerFigureLayout(data.trend_decomposition.layout, getThemeColors());
+    Plotly.newPlot(body, data.trend_decomposition.data, themedLayout, PLOTLY_CONFIG);
+  }
+
+  // The LightGBM column appears only when the backend confirms it actually ran --
+  // meta.lightgbm_included, not the request checkbox, since the model can be skipped
+  // on thin history or fail soft while the Prophet forecast still returns normally.
+  const showLgbm = Boolean(data.meta && data.meta.lightgbm_included);
+  document.querySelectorAll(".lgbm-col").forEach(node => {
+    node.classList.toggle("hidden", !showLgbm);
+  });
+
+  const tbody = el("data-table-body");
+  tbody.innerHTML = "";
+  data.forecast.forEach(row => {
+    const tr = document.createElement("tr");
+    const lgbmCell = showLgbm
+      ? `<td class="lgbm-cell lgbm-col">${row.yhat_lightgbm != null ? fmtNum(row.yhat_lightgbm) : "—"}</td>`
+      : "";
+    tr.innerHTML = `<td>${row.ds}</td><td>${row.weekday}</td><td>${fmtNum(row.yhat)}</td>` +
+      lgbmCell +
+      `<td>${fmtNum(row.yhat_lower)}</td>` +
+      `<td>${fmtNum(row.yhat_upper)}</td><td>${fmtNum(row.safety_stock)}</td>` +
+      `<td>${fmtNum(row.daily_shortfall)}</td><td>${fmtNum(row.cumulative_shortfall)}</td>` +
+      `<td>${row.liquidity_to_volume_ratio !== null ? fmtNum(row.liquidity_to_volume_ratio, 4) : "—"}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  el("results").classList.remove("hidden");
+}
+
+// ---- Evaluate accuracy (backtest) -------------------------------------------
+// Same chart techniques as buildFundingGapFigure (a zero-width fill trace for the
+// shaded uncertainty band, hovermode "x unified", themed via getThemeColors()) --
+// plotting actual vs. forecast vs. naive baseline over the held-out test window
+// instead of forecast vs. baseline over the future horizon.
+
+function buildEvalFigure(days) {
+  const colors = getThemeColors();
+  const dates = days.map(d => d.ds);
+  const outside = days.filter(d => !d.within_interval);
+
+  const data = [
+    {
+      x: dates, y: days.map(d => d.yhat_upper), name: "Upper",
+      type: "scatter", mode: "lines", line: { width: 0 },
+      hoverinfo: "skip", showlegend: false,
+    },
+    {
+      x: dates, y: days.map(d => d.yhat_lower), name: "Range",
+      type: "scatter", mode: "lines", line: { width: 0 },
+      fill: "tonexty", fillcolor: hexToRgba(colors.accent, 0.15),
+      hoverinfo: "skip",
+    },
+    {
+      x: dates, y: days.map(d => d.naive_prediction), name: "Naive baseline",
+      type: "scatter", mode: "lines",
+      line: { color: colors.textMuted, width: 1.5, dash: "dot" },
+      hovertemplate: "Naive: %{y:,.0f}<extra></extra>",
+    },
+    {
+      x: dates, y: days.map(d => d.yhat), name: "Forecast",
+      type: "scatter", mode: "lines",
+      line: { color: colors.accent, width: 2.5 },
+      hovertemplate: "Forecast: %{y:,.0f}<extra></extra>",
+    },
+    {
+      x: dates, y: days.map(d => d.actual), name: "Actual",
+      type: "scatter", mode: "lines+markers",
+      line: { color: colors.textPrimary, width: 2 }, marker: { size: 5 },
+      hovertemplate: "Actual: %{y:,.0f}<extra></extra>",
+    },
+    {
+      x: outside.map(d => d.ds), y: outside.map(d => d.actual),
+      name: "Outside interval", type: "scatter", mode: "markers",
+      marker: { color: colors.statusCritical, size: 9, line: { color: colors.surface, width: 1.5 } },
+      hovertemplate: "Outside the model's expected range<extra></extra>",
+    },
+  ];
+
+  const layout = {
+    height: 380,
+    // Matches the funding-gap chart: legend lives in the top margin, so t makes room for
+    // it and b only has to carry the axis and its title.
+    margin: { t: 46, r: 24, b: 56, l: 76 },
+    hovermode: "x unified",
+    legend: {
+      orientation: "h", yanchor: "bottom", y: 1.02, xanchor: "left", x: 0,
+      font: { size: 11 }, bgcolor: "rgba(0,0,0,0)",
+    },
+    paper_bgcolor: colors.surface,
+    plot_bgcolor: colors.surface,
+    font: { ...PLOTLY_FONT, color: colors.textSecondary, size: 12 },
+    xaxis: { title: "Date (held-out test window)", gridcolor: colors.hairline, color: colors.textMuted },
+    yaxis: {
+      title: "Transaction Amount (USD)", tickformat: ",.0f",
+      gridcolor: colors.hairline, color: colors.textMuted,
+    },
+  };
+
+  return { data, layout };
+}
+
+// coverage_pct vs. target*100: how far short determines good/warning/critical, matching
+// the same three-tier badge convention as the funding-gap shortfall badge.
+function coverageBadgeStatus(coveragePct, targetPct) {
+  const deficit = targetPct - coveragePct;
+  if (deficit <= 5) return "good";
+  if (deficit <= 20) return "warning";
+  return "critical";
+}
+
+function renderEvalResults(data) {
+  const targetPct = data.interval_width_configured * 100;
+
+  el("eval-meta-line").innerHTML =
+    `Held out <strong>${data.eval_days}</strong> day(s), ` +
+    `trained on <strong>${data.train_days}</strong> day(s) of history ` +
+    `&middot; test window: <code>${data.window_start}</code> to <code>${data.window_end}</code>` +
+    (data.zero_actual_days_excluded_from_mape > 0
+      ? ` &middot; ${data.zero_actual_days_excluded_from_mape} zero-volume day(s) excluded from MAPE`
+      : "");
+
+  const grid = el("eval-stat-grid");
+  grid.innerHTML = "";
+
+  const mapeText = data.mape_pct !== null ? fmtNum(data.mape_pct, 1) + "%" : "—";
+  const naiveMapeText = data.naive_baseline.mape_pct !== null
+    ? fmtNum(data.naive_baseline.mape_pct, 1) + "%" : "—";
+
+  grid.appendChild(statTile("MAPE", mapeText, `naive baseline: ${naiveMapeText}`, "eval_mape"));
+  grid.appendChild(statTile("RMSE", fmtUSD(data.rmse), `naive baseline: ${fmtUSD(data.naive_baseline.rmse)}`, "eval_rmse"));
+
+  const intervalBadge = makeBadge(
+    coverageBadgeStatus(data.interval_coverage_pct, targetPct),
+    `${fmtNum(data.interval_coverage_pct, 1)}% (target ${fmtNum(targetPct, 0)}%)`
+  );
+  grid.appendChild(statTile("Interval coverage", intervalBadge, null, "eval_interval_coverage"));
+
+  const safetyBadge = makeBadge(
+    coverageBadgeStatus(data.safety_stock_coverage_pct, targetPct),
+    `${fmtNum(data.safety_stock_coverage_pct, 1)}%`
+  );
+  grid.appendChild(statTile("Safety stock coverage", safetyBadge, null, "eval_safety_stock_coverage"));
+
+  const beatsRmse = data.prophet_beats_naive_on_rmse;
+  const beatsMape = data.prophet_beats_naive_on_mape;
+  let vsStatus = "warning", vsText = "Mixed vs. naive baseline";
+  if (beatsRmse && (beatsMape === null || beatsMape)) { vsStatus = "good"; vsText = "Beats naive baseline"; }
+  else if (!beatsRmse && (beatsMape === null || !beatsMape)) { vsStatus = "critical"; vsText = "Loses to naive baseline"; }
+  grid.appendChild(statTile("vs. naive baseline", makeBadge(vsStatus, vsText), null, "eval_naive_baseline"));
+
+  const chartsGrid = el("eval-charts-grid");
+  chartsGrid.innerHTML = "";
+  const figure = document.createElement("figure");
+  const body = document.createElement("div");
+  body.className = "plotly-chart";
+  figure.appendChild(body);
+  const caption = document.createElement("figcaption");
+  const title = document.createElement("span");
+  title.className = "title";
+  title.textContent = "Backtest: actual vs. forecast";
+  caption.appendChild(title);
+  caption.appendChild(document.createTextNode(
+    "The held-out window the model never saw while fitting. Red markers show days " +
+    "actual volume fell outside the model's own expected range."
+  ));
+  figure.appendChild(caption);
+  chartsGrid.appendChild(figure);
+  const fig = buildEvalFigure(data.days);
+  Plotly.newPlot(body, fig.data, fig.layout, PLOTLY_CONFIG);
+
+  el("eval-results").classList.remove("hidden");
+}
+
+async function evaluateAccuracy() {
+  el("eval-error").classList.add("hidden");
+  el("eval-results").classList.add("hidden");
+
+  const filterError = dimensionFiltersError();
+  if (filterError) {
+    el("eval-error").textContent = filterError;
+    el("eval-error").classList.remove("hidden");
+    return;
+  }
+
+  const btn = el("evaluate-btn");
+  btn.disabled = true;
+  el("eval-spinner").classList.add("active");
+  el("eval-status").textContent = "Backtesting… this can take a few seconds.";
+
+  try {
+    const res = await fetch(API + "/api/v1/forecast/evaluate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(buildEvalRequestBody()),
+    });
+    const body = await res.json();
+    if (!res.ok) {
+      const detail = body.detail;
+      const msg = Array.isArray(detail)
+        ? detail.map(d => d.msg).join("; ")
+        : (detail || `Request failed with status ${res.status}`);
+      el("eval-error").textContent = msg;
+      el("eval-error").classList.remove("hidden");
+      return;
+    }
+    renderEvalResults(body);
+  } catch (err) {
+    el("eval-error").textContent = "Network error talking to the API: " + err.message;
+    el("eval-error").classList.remove("hidden");
+  } finally {
+    btn.disabled = false;
+    el("eval-spinner").classList.remove("active");
+    el("eval-status").textContent = "";
+  }
+}
+
+el("evaluate-btn").addEventListener("click", evaluateAccuracy);
+
+async function runForecast(evt) {
+  evt.preventDefault();
+  clearError();
+  el("results").classList.add("hidden");
+
+  const filterError = dimensionFiltersError();
+  if (filterError) {
+    showError(filterError);
+    return;
+  }
+
+  // Catch bad LightGBM values here rather than letting the backend 422 them: the API
+  // would still reject them correctly, but this points at the offending field.
+  const lgbmError = validateLightGBM();
+  if (lgbmError) {
+    showError(lgbmError);
+    return;
+  }
+
+  const btn = el("run-btn");
+  btn.disabled = true;
+  el("spinner").classList.add("active");
+  el("run-status").textContent = el("include_lightgbm").checked
+    ? "Fitting Prophet and LightGBM models… this can take a few seconds."
+    : "Fitting Prophet model… this can take a few seconds.";
+
+  try {
+    const res = await fetch(API + "/api/v1/forecast/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(buildRequestBody()),
+    });
+    const body = await res.json();
+    if (!res.ok) {
+      const detail = body.detail;
+      const msg = Array.isArray(detail)
+        ? detail.map(d => d.msg).join("; ")
+        : (detail || `Request failed with status ${res.status}`);
+      showError(msg);
+      return;
+    }
+    renderResults(body);
+  } catch (err) {
+    showError("Network error talking to the API: " + err.message);
+  } finally {
+    btn.disabled = false;
+    el("spinner").classList.remove("active");
+    el("run-status").textContent = "";
+  }
+}
+
+renderGlossary();
+wireInfoIcons();
+el("forecast-form").addEventListener("submit", runForecast);
+loadMeta().catch(err => showError("Failed to load filter options from the API: " + err.message));
+</script>
+</body>
+</html>

@@ -1,0 +1,1267 @@
+iSendAnalytics — Project Notes
+Captured: 2026-08-17
+Updated: 2026-08-19
+Status: Phase 1 underway -- forecasting engine + API + a dashboard (now with an
+interactive chart + full glossary) built. See PROGRESS section below.
+
+=================================================================
+VISION
+=================================================================
+Agentic AI reporting platform. User submits a request/input, the
+agent interprets it and acts accordingly (e.g. query data, run
+analysis, generate a report/visualization) rather than the system
+exposing only fixed, pre-built reports.
+
+=================================================================
+PHASING (decided 2026-08-18)
+=================================================================
+Build in two phases rather than all at once:
+
+  Phase 1 — API-driven platform, NO LLM/agent yet.
+    DB, async API, config, logging, default dashboard. Fully
+    deterministic and testable on its own.
+
+  Phase 2 — Layer the agentic/LLM piece onto the Phase 1 platform.
+    The agent becomes a client of the Phase 1 API; MCP sits between
+    agent and data at this point.
+
+Rationale: DB/API decisions are stable engineering choices; agent/
+LLM-framework choices are the most volatile part of the design and
+easiest to validate once they sit on an already-correct foundation.
+The Phase 1 API is not throwaway work — it's what the agent and MCP
+layer call in Phase 2.
+
+Design constraint carried back into Phase 1 so it isn't a rewrite
+later:
+  - Shape endpoints as granular/composable "tool-like" calls
+    (agent-consumable), not just a few broad aggregate endpoints
+    convenient only for the dashboard.
+  - Logging should carry a caller/actor field from the start (human
+    via dashboard vs. later, agent via MCP) so Phase 2's agent-action
+    tracing doesn't require replumbing logging.
+  - Sketch the permission/access-control model now even if minimal —
+    "MCP for data safety" is fundamentally an access-control problem,
+    better bolted on top of an existing model than retrofitted.
+
+=================================================================
+ARCHITECTURE REQUIREMENTS (status as of 2026-08-18)
+=================================================================
+- API-driven: DONE -- app/ is a FastAPI service, forecast + meta
+  endpoints, no UI-only path.
+- Highly configurable: DONE for forecasting -- every engine knob
+  (horizon, seasonality, holidays, statuses counted, baseline,
+  buffer) lives in app/forecasting/config.py, mirrored in the API
+  request body, with env-level fallbacks in .env. Not yet extended
+  to anything beyond forecasting (no DB/dashboard config exists yet
+  since those modules don't exist yet).
+- Modular structure: DONE for what's built -- core/data/forecasting/
+  api are cleanly separated (app/README.md has the module map);
+  untested claim is whether this layout survives the dashboard/DB/
+  agent modules being added later.
+- Asynchronous: PARTIAL -- the forecast route is async and offloads
+  the blocking Prophet fit via asyncio.to_thread; there's no DB or
+  agent I/O yet to be async about.
+- Proper logging: PARTIAL -- structured logging is in place
+  (app/core/logging_config.py) and used throughout app/, but the
+  caller/actor field called for in PHASING below was NOT added (see
+  PROGRESS section's honest gap check).
+
+=================================================================
+FUNCTIONAL REQUIREMENTS
+=================================================================
+1. Agentic core [Phase 2]
+   - Accepts user input (natural-language request presumably).
+   - Interprets intent and "deals accordingly" — i.e. decides what
+     data/action is needed and executes it.
+
+2. Persistence [Phase 1]
+   - Data moves into a database (currently it's a single raw CSV,
+     Business_Report.csv — 233 MB, 1.43M rows of remittance
+     transactions). DB replaces/augments the flat file.
+
+3. MCP for data safety [Phase 2]
+   - Use Model Context Protocol as the layer between the agent and
+     the data, so the agent doesn't get raw/unrestricted DB access.
+   - Intent (as stated): safety/guardrails around what the agent can
+     read or do with the data.
+
+4. Default dashboard [Phase 1] -- DONE (basic version, 2026-08-19)
+   - A baseline dashboard ships out of the box (not agent-generated)
+     for standard reporting/visualization. Built as a plain HTML/JS
+     page (app/static/dashboard/), chosen over Streamlit when asked
+     directly -- see PROGRESS below. A richer dashboard (Streamlit or
+     otherwise) is still a separate, open decision if ever wanted.
+
+=================================================================
+CURRENT REPO STATE (context for continuation)
+=================================================================
+- Not a git repo yet.
+- Business_Report.csv at repo root — the working dataset. Schema
+  and notes documented in CLAUDE.md.
+- eda/ — sweetviz EDA report (ydata-profiling doesn't support this
+  Python version; see eda/README.md).
+- app/ — FastAPI + Prophet forecasting engine. See PROGRESS below and
+  app/README.md for full detail.
+- business_data_send.py — pre-existing single-corridor Colab prototype
+  (AUSTRALIA -> BHUTAN) that app/ generalizes; kept as reference.
+- .env — runtime config for app/ (data backend, csv path override, log
+  level, forecast defaults), read via pydantic-settings. Every value in
+  it is already the code's built-in default -- exists for visibility/
+  override, not because anything requires editing it to run.
+- .venv present (Python 3.14.6), now with real dependencies installed
+  (see requirements.txt at repo root).
+
+=================================================================
+PROGRESS (2026-08-18): forecasting engine + API built
+=================================================================
+Built `app/` — the "Global Treasury Forecasting & Liquidity Engine":
+TreasuryEngine (prepare_data/train_forecast/simulate_liquidity/
+summarize) using Prophet, wrapped in a FastAPI service. Forecasts by
+receiver country, corridor, or agent; sending/receiving-country
+holidays (via pycountry + holidays lib) plus a synthetic monthly
+"salary week" event feed into Prophet; liquidity-risk simulation
+(safety stock, shortfall, liquidity-to-volume ratio) and chart
+rendering (trend decomposition, funding gap) built on top. CSV data
+repository with mtime-based cache invalidation so newly appended rows
+get picked up without a restart; Postgres repository is a stubbed
+placeholder for later. Full writeup: app/README.md.
+
+Verified end-to-end against the real CSV (not just unit-tested in
+isolation): ran the live FastAPI server, hit all three forecast
+dimensions plus the meta/error-handling endpoints via real HTTP calls,
+and cross-checked results against business_data_send.py's own reported
+numbers for AUSTRALIA -> BHUTAN (within ~1-3%, despite this engine also
+modeling holidays the prototype didn't).
+
+This answers several Phase 1 open questions below (API framework,
+partially the DB question). Still open: dashboard framework, auth,
+deployment target, git init.
+
+Follow-up (same day): audited and fixed PEP8/OpenAPI/exception-handling gaps the user
+flagged. flake8+ruff now pass clean (config in pyproject.toml/.flake8, line-length 100);
+the generated OpenAPI 3.1.0 schema is validated (not just assumed) via
+openapi-spec-validator; added a proper exception hierarchy (app/core/exceptions.py --
+DataSourceError=503, ForecastingError=500, ValueError=422) with handling at every layer
+that previously had none (routes_meta.py had zero error handling before this pass;
+get_repository() as a FastAPI dependency ran before any route's try/except; Settings now
+fails fast at startup via Literal types instead of failing confusingly on first request).
+Full mapping/reasoning in app/README.md's "Code standards" section.
+
+Honest check against the Phase 1 design constraints set on 2026-08-18
+(see PHASING above) -- two were NOT carried through into the actual
+build and shouldn't be assumed done:
+  - "Logging should carry a caller/actor field from the start" -- NOT
+    done. app/main.py's request-logging middleware logs method/path/
+    status/duration but no caller identity. Worth adding before
+    Phase 2's agent calls arrive, so it isn't a logging replumb later.
+  - "Sketch the permission/access-control model now even if minimal"
+    -- NOT done. app/ has zero auth/access control at this point.
+  - The "granular/composable tool-like endpoints" constraint WAS
+    followed (one dimension-parameterized forecast endpoint + meta
+    endpoints, not a pile of bespoke aggregate routes).
+
+=================================================================
+PROGRESS (2026-08-19): dashboard built + docs/insights follow-up
+=================================================================
+Applied the /insights report's suggestions to CLAUDE.md (adapted, not
+pasted verbatim -- several suggestions referenced OTHER projects of
+the user's, e.g. GARCH/Diebold-Mariano and a duplicate-directories
+issue that never happened in this repo, and were left out). Added a
+"Working style & standing expectations" section. Created AGENTS.md
+(the tool-agnostic agents.md convention) alongside CLAUDE.md for
+non-Claude-Code AI tools, kept in sync by cross-reference.
+
+Built the Phase 1 "default dashboard": a plain HTML/JS page
+(app/static/dashboard/index.html, served same-origin via a
+StaticFiles mount in app/main.py -- no separate server, no CORS).
+Dropdowns populate from the meta endpoints (corridor-aware: picking
+a sending country filters receiver options to real corridors);
+submits to /api/v1/forecast/run and renders the summary as stat
+tiles, both charts, and a collapsible day-by-day data table.
+Streamlit was offered and NOT chosen -- user picked plain HTML/JS
+directly when asked.
+
+Verified by actually driving it (Playwright + a pre-cached Chromium
+binary, not just API-level checks): caught a real bug this way that
+API testing alone would have missed -- the default interval_width
+(0.8) violated its own HTML5 step="0.05" constraint, and because
+that field sits inside a collapsed <details> panel, the browser
+couldn't focus it to report the error, so form submission was
+silently blocked with zero visible error. Fixed with `novalidate`
+(the backend's Pydantic schema is the real validation source of
+truth anyway). Also discovered and documented: growth="logistic"
+doesn't work (Prophet needs a `cap` column the engine never sets) --
+excluded from the dashboard's dropdown for that reason, noted in
+app/README.md's caveats.
+
+=================================================================
+PROGRESS (2026-08-19, later): dashboard glossary + interactive chart
+=================================================================
+User-requested, dashboard-only pass (explicitly no backend changes):
+1. Every input/output field now has an inline "i" tooltip plus a full
+   "what do these numbers mean?" glossary section -- both generated
+   from one GLOSSARY object in the page's own script, so they can't
+   drift apart. Audience is the Treasury Management team, not
+   engineers, so definitions are plain-language, not statistical.
+2. The Funding Gap Analysis chart is now a real interactive chart --
+   hand-rolled SVG/JS (no charting library/CDN dependency), with a
+   crosshair, one tooltip listing every series at the hovered day, a
+   legend, and keyboard support (arrow keys + an aria-live region for
+   screen readers). Needed no backend change -- every value it plots
+   was already in the API response.
+3. Trend decomposition intentionally stayed a static server-rendered
+   image: its per-day component values (trend/weekly/yearly/holidays)
+   aren't in the current API payload, only baked into that PNG.
+   Making it interactive too would require extending the API --
+   explicitly out of scope for this pass; flagged, not silently done
+   anyway or silently skipped without explanation.
+
+Verified with the same Playwright-driven approach as before, not
+just visual inspection: light + dark mode, a narrow (720px) viewport,
+hover AND keyboard interaction, all three dimensions (receiver
+country/corridor/agent), zero console errors throughout. Caught a
+second real bug this way (first was the interval_width step-
+validation issue, PROGRESS above): table-header tooltips were
+rendering garbled/clipped, because the sticky `<th>` sits at the very
+top edge of its scrolling container, so a tooltip opening upward (the
+default) had nowhere to go and got clipped. Fixed by opening
+header tooltips downward instead -- documented in app/README.md so
+the same fix is remembered if another sticky/scroll-clipped tooltip
+context gets added later.
+
+=================================================================
+PROGRESS (2026-08-19, later still): baseline auto-fill + a small
+backend addition, planned before coding
+=================================================================
+User asked "how is Baseline funding level determined?" -- answer:
+it wasn't calculated at all, a plain user-typed number (unlike
+business_data_send.py, which auto-computed it as the last-30-days
+average). User then asked for a "Suggest" auto-fill button, but
+explicitly asked to plan first since management may want more
+methods later (e.g. Weighted Average) -- planned via 3 targeted
+questions (data source / which methods / fixed vs adjustable
+window) before writing any code, all three answered with the
+recommended option:
+
+- New endpoint POST /api/v1/forecast/baseline-suggestion (reuses
+  TreasuryEngine.prepare_data() on real historical actuals -- more
+  accurate than approximating from Prophet's fitted history, and
+  works before a forecast has even been run).
+- All three methods built now, not just Average: average (mean),
+  weighted_average (EWMA, recency-weighted), median (resistant to
+  one-off large days -- suggested given the documented thin/spiky-
+  corridor caveat). Designed as a small method registry so a 4th
+  method later is one new entry, not a redesign.
+- Window (days) adjustable in the UI, default 30, clamps gracefully
+  with a visible note when less history exists than requested.
+- Refactored to avoid duplication: extracted DimensionFilters as a
+  shared Pydantic base (ForecastRequest and the new
+  BaselineSuggestionRequest both inherit it, same validator) and
+  _resolve_dimension_filters()/_run_or_raise() as shared helpers in
+  routes_forecast.py, mirrored by buildDimensionFilters()/
+  dimensionFiltersError() in the dashboard's own JS.
+
+Verified the same way as every other pass: real HTTP calls against
+real data for all three methods plus the history-shorter-than-window
+clamp case, then Playwright-driven UI checks (all three methods via
+the actual button, the corridor-dimension path, the thin-agent clamp
+note, a full suggest-then-run-forecast workflow) -- zero console
+errors. One layout wrap issue found and fixed (the "of last N days"
+wording broke awkwardly at the field's width) -- reworded and
+widened rather than left alone.
+
+Full reasoning and the "why not just approximate from Prophet's own
+fitted history" tradeoff are in app/README.md's "Dashboard" section
+and its new baseline_funding_level caveat entry.
+
+=================================================================
+PROGRESS (2026-08-19, later still): tooltip clipping fixed (general
+mechanism, not a patch) + both charts rebuilt on Plotly with zoom
+=================================================================
+Three asks in one pass: a SKILL.md for this dashboard (separate --
+see .claude/skills/), zoom + "plotly-related" features on both
+charts, and a reported bug -- the "Total shortfall" (and others)
+info tooltip wasn't fully visible.
+
+Tooltip bug: confirmed the root cause with real coordinates before
+fixing (tooltip box extended ~70px above .stat-grid's own top edge,
+clipped by .stat-grid's overflow:hidden -- needed there for its
+rounded-corner/hairline-gap look). This is the SAME bug class as the
+sticky-table-header issue fixed earlier the same day, just a
+different clipping ancestor -- rather than special-case a third
+context whenever it next turns up, replaced the whole CSS-:hover
+tooltip mechanism with a JS-managed portal (one shared element
+appended to <body>, positioned via getBoundingClientRect(), flips
+to open downward when there's no room above the viewport). Fixes
+every clipping-ancestor context at once, verified against all three
+(plain field, stat tile, table header).
+
+Charts: replaced the hand-rolled SVG funding-gap chart AND the
+matplotlib trend-decomposition PNG with Plotly. Real, load-bearing
+decisions made along the way, not just "add a library":
+- Self-hosted plotly.js, not a CDN (consistent with the
+  corporate-network-safe reasoning behind picking plain HTML/JS
+  over Streamlit originally) -- fetched the official "cartesian"
+  partial bundle (~1.4MB) rather than the full bundle (~4.9MB),
+  confirmed Prophet's own plot_components_plotly only emits
+  "scatter" traces so the partial bundle actually covers it.
+- Confirmed (not assumed) that Plotly 6.x's to_json() output
+  (a compact base64 "typed array" encoding for numeric arrays) is
+  correctly decoded by the specific plotly.js version downloaded --
+  built and ran a standalone test page before wiring it into the
+  real app.
+- Funding-gap chart now built entirely client-side from
+  data.forecast (no backend change). Trend decomposition DID need a
+  backend change -- app/forecasting/charts.py now returns Plotly
+  figure JSON (json.loads(fig.to_json()), not to_plotly_json()
+  directly, to avoid handing FastAPI numpy arrays it can't
+  serialize) instead of a matplotlib PNG; ForecastResponse.charts
+  (dict[str,str]) replaced with trend_decomposition (dict | None) --
+  the funding_gap PNG this replaced was already being generated and
+  discarded unused before this pass (a known "mild inefficiency"),
+  now removed for real. matplotlib/seaborn dropped from
+  requirements.txt (nothing in app/ imports them directly anymore);
+  removed a now-dead ruff/flake8 per-file E402 ignore for charts.py
+  that existed only because of the matplotlib import-order quirk.
+- Both charts get zoom/pan/autoscale/download-as-PNG from Plotly's
+  modebar, and a native hovermode="x unified" tooltip (one tooltip,
+  every series, at the hovered x) -- replacing the hand-rolled
+  crosshair+tooltip+legend the SVG chart had. Both charts re-theme
+  to light/dark mode by reading the page's own CSS custom properties
+  at render time (getThemeColors()) -- including patching colors
+  onto the server-rendered figure client-side, since the backend
+  can't know the caller's color scheme when it renders.
+- Real trade-off, not hidden: the old SVG chart's keyboard
+  interaction (arrow keys + aria-live announcing values) doesn't
+  carry over -- Plotly's own keyboard/screen-reader support is not
+  as tailored. The day-by-day data table remains the full accessible
+  fallback either way.
+- One layout bug found by actually running it (not by reading the
+  code): full legend labels ("Risk-adjusted safety stock", etc.)
+  wrapped to two rows and got clipped by Plotly's own allotted
+  legend height. Shortened to terse labels (Forecast/Safety stock/
+  Baseline/Range) since the figcaption and glossary already carry
+  the full names -- fixed, then re-verified.
+
+Verified the same way as every other pass in this project: real
+Playwright-driven checks, not just visual inspection -- confirmed
+actual zoom by reading the chart's x-axis range before/after a drag
+gesture (not just screenshotting it), confirmed the native unified
+hover tooltip renders with every series, checked both charts in
+light AND dark mode, re-ran the full baseline-suggest -> run-
+forecast -> interact workflow end to end. Zero console errors
+throughout every check.
+
+=================================================================
+PROGRESS (2026-08-19, later still): treasury-dashboard SKILL.md
+confirmed in place + shareable user manual built via Design canvas
+=================================================================
+Two closeouts from the same day's dashboard work:
+
+1. Confirmed .claude/skills/treasury-dashboard/SKILL.md (written in
+   the prior pass) is correctly placed and picked up -- it appears in
+   the available-skills listing under its `treasury-dashboard` name,
+   so no further action was needed there.
+
+2. Built a full user manual for the dashboard, aimed explicitly at a
+   Fintech-management beginner, not just an engineer -- covers every
+   input/parameter (Dimension, Sending/Receiver country, Agent,
+   Horizon, Baseline funding + its Suggest auto-fill methods, Safety
+   buffer %, Growth, Interval width, Seasonality, Salary week,
+   statuses counted) with plain-language meaning, valid range, and
+   default, plus how to read the six result tiles, both charts, and
+   the data table; a glossary; common troubleshooting scenarios; and
+   a one-page quick-reference table. Four hand-drawn SVG diagrams
+   (quick-start workflow, the three Dimension views compared, the
+   safety-stock/baseline/shortfall relationship, and a Growth-mode
+   decision tree) since live Mermaid can't render inside this canvas
+   type -- flagged that constraint up front and the user chose the
+   Design canvas format anyway over a plain Markdown/HTML artifact.
+   Visual design deliberately matches the live dashboard's real
+   light-mode tokens as fixed values (not dark-mode-responsive) --
+   a shareable/printable manual, unlike the app itself, reads better
+   staying in one look regardless of the viewer's OS theme.
+   Built as a single flowing artboard (docs/user-manual-design/,
+   Main.dc.html + canvas.json, print:"flow", launch view focused on
+   Main.dc.html so it opens as a normal scrolling document) and
+   published: https://claude.ai/code/artifact/a953292e-4c25-46a3-8e3f-b9daf265fa7f
+
+=================================================================
+PROGRESS (2026-08-19, later still): user manual revised per canvas
+comment -- third-party tone throughout, 6 more diagrams
+=================================================================
+Feedback arrived as a comment thread directly on the published
+canvas (not chat) asking for two things: avoid second-person
+address ("you"/"your"/imperative instructions -- no literal
+"directly" was actually present, but the instruction reads as a
+general no-second-person-address rule) and more diagrams for major
+components. Handled per the design skill's rule for a canvas that
+lives on the Artifact: WebFetched the live page, --extract'ed it
+into a fresh dir rather than trusting the local working copy (which
+turned out fine -- Main.dc.html was byte-identical -- but canvas.json
+had a real external edit worth preserving: the user had switched the
+launch view from focused-document to the full pan/zoom canvas, and
+added an explicit artboard height. Kept both rather than reverting
+them.
+
+Content changes:
+- Full pass rewriting every "you/your" and imperative instruction
+  ("Click", "Drag", "Try", "Use", "Pick", "Double-check", "Stick to")
+  into neutral third-person/descriptive phrasing, including inside
+  the SVG diagram text (quick-start step labels, growth diagram) and
+  the JS glossary/table data strings, not just prose paragraphs.
+- Added 6 more hand-drawn SVG diagrams so every major section has
+  one: Core Inputs -> Engine -> Results pipeline (Sec 5), a
+  baseline-methods comparison chart showing why Median resists a
+  spike better than Average/Weighted average (Sec 6), an interval-
+  width band-width illustration alongside the existing Growth
+  decision tree (Sec 7), a stat-tile anatomy diagram (Sec 9), a
+  Funding Gap chart anatomy diagram with a hover-tooltip callout
+  (Sec 10), and a chart-to-table row correspondence diagram (Sec 11).
+  10 diagrams total in the manual now.
+Re-seeded, --check clean, republished to the same link (contract
+0.1.31, capabilities carried forward unchanged). Comment thread
+resolved after publishing.
+
+=================================================================
+PROGRESS (2026-08-19, later still): Weekday column on the data
+table + charts stacked full-width instead of side-by-side
+=================================================================
+Two dashboard changes, one small API addition:
+
+1. Day-by-day forecast data table now has a Weekday column (Sat,
+   Sun, Mon...) right after Date. Decided to compute this
+   server-side rather than parse it out of the date string in JS:
+   added ForecastPoint.weekday (app/api/schemas.py) and a fixed
+   Mon..Sun abbreviation tuple in routes_forecast.py, mapped from
+   pandas' ds.dt.dayofweek before ds itself gets overwritten to a
+   plain date string in the same .assign() call (verified pandas
+   evaluates assign() kwargs in order, so listing weekday first
+   still sees the datetime column -- checked with a throwaway
+   snippet before committing to the real code). Two real reasons
+   for doing this server-side instead of client-side: (a) avoids
+   pandas'/strftime's own locale-dependent %a directive, and (b)
+   sidesteps a genuine JS foot-gun -- new Date("2026-08-20").getDay()
+   parses as UTC midnight but reports the day in the *browser's
+   local* timezone, silently off-by-one for viewers west of UTC.
+2. The two charts (Funding gap analysis, Trend decomposition) now
+   stack vertically, one per row, each at the full page width --
+   .charts-grid changed from a responsive auto-fit 2-column grid to
+   a single 1fr column. Plotly's own responsive:true (already set)
+   keeps both correctly sized on window resize.
+
+Updated app/README.md (Dashboard section + the example JSON
+response, which also had a stale pre-Plotly "charts": {...} field
+from before the matplotlib->Plotly migration -- fixed that too
+while in the same block). ruff/flake8 clean. Verified for real, not
+assumed: a direct POST to /forecast/run confirmed correct weekday
+values, then a Playwright pass against the live dashboard (both
+light and dark mode) asserted the actual computed grid-template-
+columns (single track), each figure's bounding box (stacked, full
+grid width), and the rendered Weekday column against real calendar
+dates -- zero console/page errors either mode. Screenshot confirmed
+visually too.
+
+Aside: hit real environment flakiness getting a clean dev server
+up for this -- a stale listener on port 8000 that Windows-native
+tools (tasklist/Get-Process/Get-NetTCPConnection) couldn't agree
+on the PID of or successfully kill, even though it kept answering
+requests. Worked around it by moving verification to port 8010
+rather than losing more time chasing it -- not a code issue, didn't
+block anything, but worth knowing if a future session hits the same
+thing on this machine.
+
+=================================================================
+PROGRESS (2026-08-19, later still): User Manual saved as a plain
+file under docs/, independent of the Design canvas
+=================================================================
+The published Design-canvas artifact (Treasury Dashboard User
+Manual) only exists as a claude.ai-hosted page plus a ~2.2MB seeded
+editor payload under docs/user-manual-design/ -- neither is a
+clean, offline-openable project asset. Converted it to a real
+standalone file instead: docs/treasury-dashboard-user-manual.html
+(52KB) -- plain HTML/CSS/inline-SVG, no editor runtime, no
+claude.ai dependency, opens directly in any browser.
+
+Built by re-fetching the live artifact (WebFetch + --extract, same
+protocol as before -- confirmed content unchanged since the last
+sync, only canvas.json's launch view had toggled again), then a
+one-off Node script (not kept, was scratch) that: pulled the
+<style> block and the <div class="doc"> markup out of Main.dc.html
+as-is, evaluated the real renderVals() data (a stubbed DCLogic
+base class + Function(), not a regex parse of the object literal,
+so entities/quotes inside strings can't trip it up), and expanded
+every <sc-for> loop into real static rows using that data.
+
+Verified, not assumed: loaded the resulting file in Playwright,
+confirmed all 14 section headings, all 14 SVGs (10 diagrams + 4
+callout icons -- matches what's actually authored), glossary (11)
+and quick-reference (14) row counts against the source data, zero
+leftover "{{" template syntax or literal "undefined" in the
+rendered text, zero console errors. Screenshotted top and bottom
+of the page for a visual check too.
+
+docs/user-manual-design/ remains the *source* (Main.dc.html +
+canvas.json) for future edits via the Design-canvas workflow --
+docs/treasury-dashboard-user-manual.html is the plain, shareable
+copy to regenerate from it after any future revision.
+
+=================================================================
+PROGRESS (2026-08-20): Full /api review -- 3 new endpoints, full
+OpenAPI 3 completeness pass across every existing schema
+=================================================================
+Asked to review the whole API against the dashboard and everything
+built so far, add endpoints if genuinely needed, and bring the
+OpenAPI 3 document up to a complete/standard shape.
+
+Reviewed first, built second: enumerated every fetch() call the
+dashboard actually makes (all 5 meta endpoints + both forecast
+endpoints -- nothing orphaned, nothing missing that the dashboard
+itself needs) before deciding what, if anything, to add. Concluded
+the dashboard alone didn't justify a new endpoint, but two other
+gaps did:
+
+New endpoints:
+- GET /api/v1/meta/summary -- dataset-wide overview (total_rows,
+  TRN_Date min/max, distinct counts per key column). This is CLAUDE.md's
+  own schema table, live -- verified it against those exact
+  documented numbers (1,430,655 rows; 24/71/102/178/11/13/35 distinct
+  counts; 2024-01-01..2026-07-31) and every one matched exactly.
+  Previously this was only knowable by reading static docs or
+  re-running the EDA report.
+- GET / -- orientation endpoint (links to /docs, /redoc, /dashboard/,
+  /health, /ready). The service had no landing page at all before.
+- GET /ready -- readiness (actually attempts repository.load(),
+  503 on DataSourceError), distinct from the pre-existing GET
+  /health which is deliberately liveness-only (never touches the
+  data source, so it stays meaningful even when that's down). New
+  "system" OpenAPI tag groups all three, separate from forecast/meta.
+
+OpenAPI 3 completeness pass across every existing schema/route:
+- Every request AND response field across every model now has a
+  `description` -- ForecastRequest.horizon_days/growth/interval_width/
+  etc., every ForecastMeta/ForecastPoint field, BaselineSuggestionResponse
+  fields, SeasonalityIn/HolidayIn fields -- previously several had none.
+- ForecastResponse.summary was a bare `dict` -- correct on the wire
+  but opaque in the schema itself ({"type":"object"}, no properties).
+  Replaced with a fully-typed ForecastSummary model (all 6 fields
+  named/typed/described) -- zero change to the actual JSON shape,
+  confirmed by re-running a live forecast before/after and diffing.
+  Same treatment for the new /meta/summary response (DateRange +
+  DatasetDistinctCounts, not another bare dict).
+- Added worked examples (json_schema_extra) to every response model
+  that didn't have one yet, not just the request models that already
+  did.
+- Explicit operation_id on every route (FastAPI auto-generates a
+  verbose one either way; explicit ones are what a codegen tool or
+  a person reading /docs actually wants).
+- App-level: added `summary` (short, separate from the long
+  `description`) and a `servers` entry.
+- Deliberately did NOT add: contact/license_info/terms_of_service
+  (business/legal decisions for an internal tool with no license or
+  support contact decided yet -- see OPEN QUESTIONS below, not mine
+  to invent) or a securityScheme (there is genuinely no auth in this
+  phase; documenting one that doesn't exist would be actively
+  misleading, not "more complete").
+
+Verified, not assumed: ruff/flake8 clean; live /openapi.json
+validated with openapi-spec-validator; every new endpoint hit
+directly and checked against real numbers; both forecast endpoints
+re-run end-to-end to confirm the ForecastSummary retyping didn't
+change the actual response bytes; growth=logistic still fails with
+500 and a bad dimension-filter combo still 422s, exactly as their
+own new field descriptions now claim; a full Playwright pass against
+the live dashboard (6 stat tiles, 5 data-table rows, correct weekday
+values, zero console errors) confirmed the frontend is unaffected.
+app/README.md's API table and Code standards/OpenAPI section updated
+to match.
+
+Side observation from testing, not fixed (out of scope for this
+pass, flagging honestly rather than silently fixing or ignoring):
+on a cold cache, several meta endpoints hit concurrently (exactly
+what the dashboard's own Promise.all-style startup fetch does) each
+independently re-parse the full 233MB CSV in parallel rather than
+one caller loading it while the others wait and reuse the result --
+CSVDataRepository.load() has no lock around its mtime-check-then-
+read sequence. Only matters on a cold start (~30-45s each, all in
+parallel, vs one ~30-45s load); once cached it's instant either way.
+Worth an asyncio.Lock (or similar) around load() if cold-start
+latency under concurrent load ever actually matters -- not done
+here since it wasn't what was asked and touches concurrency
+behavior that deserves its own deliberate pass, not a drive-by fix.
+
+=================================================================
+PROGRESS (2026-08-26): File-based logging -- logs/ folder, daily
+rotation, gzip compression, 7-day retention
+=================================================================
+Flagged by the user: the project already used the logging module
+throughout (logger.info/warning/error/exception at every layer,
+established since early sessions) but had no actual log FILE --
+setup_logging() only ever called logging.basicConfig() with no
+filename, i.e. console-only the whole time.
+
+Fixed in app/core/logging_config.py (the existing, already-correct
+home for this -- no new module needed):
+- New logs/ folder at repo root (matches docs/, eda/ as top-level,
+  non-source directories).
+- logging.handlers.TimedRotatingFileHandler, when="midnight",
+  interval=1 -- one active logs/app.log per day, written alongside
+  the existing console output (both handlers now attached to the
+  root logger, same formatter, nothing removed).
+- Compression: the stdlib handler doesn't gzip on its own -- added
+  a custom .rotator/.namer pair (gzip the rotated file, delete the
+  uncompressed original, name it <name>.gz) so only today's file is
+  ever uncompressed on disk.
+- Retention: backupCount=7, confirmed with the user first (asked
+  via AskUserQuestion -- this actually deletes old logs
+  automatically, a real policy decision, not something to assume
+  silently). Recommended 30, user chose 7.
+- Verified a real, known gotcha empirically before shipping it:
+  older Python's TimedRotatingFileHandler.getFilesToDelete() doesn't
+  always recognize files a custom namer has renamed, silently
+  breaking backupCount cleanup. Wrote a throwaway script forcing 6
+  rapid rotations with backupCount=2 and confirmed exactly 2 .gz
+  files survived on this project's Python 3.14.6 -- safe to rely on.
+- setup_logging() now clears root.handlers first (idempotent if
+  ever called twice, e.g. under a test runner) rather than stacking
+  duplicate handlers.
+
+Verified end-to-end, not just unit-level: ran the real server, hit
+real endpoints, confirmed logs/app.log appears with the exact same
+formatted lines as the console (both handlers in sync), confirmed
+WARNING-level lines from two different modules (routes_forecast.py,
+holidays.py) came through correctly, confirmed a genuinely bad
+request still only logs once per layer (no duplication from the
+two handlers double-firing something they shouldn't).
+ruff/flake8 clean on the file I actually touched.
+
+app/main.py's log_requests() middleware had picked up a placeholder/
+template docstring on disk between sessions ("Hello / Args: 1.
+request: / Exception: 1. Exception: / Example: /log_requests(a, b)")
+-- looked like an unfilled IDE docstring-generator stub, not real
+content, and was actively failing ruff/flake8 (trailing whitespace).
+Flagged it rather than fixing it unprompted; user confirmed and
+asked for a real docstring -- replaced with one matching this
+file's own prose style (no Args:/Returns: sections, since nothing
+else in this codebase's docstrings uses that format either).
+ruff/flake8 fully clean again across app/.
+
+Also noted, not acted on: logs/ isn't .gitignore'd since there's no
+.gitignore at all yet (git still not initialized -- see below).
+Add it when git init finally happens.
+
+=================================================================
+PROGRESS (2026-08-26, later): New "Advanced Settings, In Depth"
+section in the user manual -- worked example + dimension-scoping
+for every Advanced Settings parameter
+=================================================================
+Asked to explain every Advanced Settings parameter (Safety buffer,
+Interval width, Growth, Seasonality x3, Salary week, Trend
+decomposition toggle, Statuses counted) with a worked example each,
+plus explicitly answer "if I choose Receiver Country, who do
+seasonality/salary week actually apply to -- the receiver country,
+or something else?"
+
+Verified the real answer from the code before writing anything (not
+assumed): Dimension decides which single daily series gets built
+(prepare_data() aggregates every matching row to one daily total
+first) -- every Advanced Setting is then fit against THAT ONE
+series, whichever Dimension produced it. The one place Dimension
+does something more subtle: holiday-country resolution reads
+request.sending_country/receiver_country directly, NOT the
+dimension-filtered values -- confirmed by hitting the live API for
+all three dimensions and reading meta.*_country_code_resolved:
+receiver_country dimension -> receiver holidays only (sending
+never specified); corridor -> both; agent -> NEITHER, since an
+agent request specifies no country field at all (seasonality and
+salary week still apply, since those aren't country-dependent).
+
+Real bug caught and fixed along the way: the OpenAPI description I
+wrote for safety_buffer_pct during the API-review pass said "e.g.
+10 = +10%", but the engine computes safety_stock = yhat_upper *
+(1 + safety_buffer_pct) directly with no /100 conversion -- the raw
+API actually needs a FRACTION (0.10), not 10. Only the dashboard's
+own JS silently divides by 100 before sending, which is why this
+never surfaced through the UI. Fixed the schema description to say
+so explicitly and explain the dashboard's own conversion.
+
+Also found and worked around: Prophet's confidence-interval bounds
+(yhat_lower/yhat_upper, and therefore safety_stock) are NOT
+perfectly deterministic across separate calls with identical
+inputs -- its internal uncertainty sampling isn't seeded. Caught
+this by literally trying to diff two live calls for the safety-
+buffer worked example and getting a mismatch against the formula.
+Fixed by using ONE real yhat_upper and applying the buffer
+arithmetically for that example, rather than comparing two
+separate non-deterministic calls.
+
+Every other number in the new section is real too, pulled from a
+disposable script hitting the live API (receiver_country=NEPAL
+throughout, matching the running example used elsewhere in the
+manual and in schemas.py's own examples) -- including decoding
+Plotly's compact "bdata" typed-array encoding to read real trend/
+weekly-seasonality component values out of trend_decomposition
+(same encoding dealt with earlier when building the dashboard's
+charts; same fix applies here: base64-decode + struct.unpack).
+
+New section 8 "Advanced Settings, In Depth" inserted between the
+existing Advanced Settings Reference (7) and How Safety Stock/
+Baseline/Shortfall Relate (renumbered 8->9) -- sections 9-14 all
+shifted to 10-15, TOC updated to match. One new diagram (holiday
+resolution by the three dimensions, verified numbers baked into its
+own labels). Source of truth (docs/user-manual-design/Main.dc.html)
+edited first, then docs/treasury-dashboard-user-manual.html
+regenerated from it via the existing conversion script -- both stay
+in sync. NOT republished to the live claude.ai artifact link
+automatically (that's a separate, explicit step); offered to the
+user, not yet confirmed as of this entry.
+
+Verified: --check clean on the reseeded canvas, Playwright confirmed
+all 15 section headings present/renumbered correctly, all 10 new h3
+subsections present, zero leftover template syntax or "undefined",
+zero console errors, screenshotted the new section for a visual
+check. ruff/flake8 clean on the schemas.py fix.
+
+=================================================================
+PROGRESS (2026-08-27): git init -- TODO.md Tier 1, item 1 of 3
+=================================================================
+Started working through TODO.md's Tier 1 in order (highest-leverage
+items first: git -> pytest -> CI). git first since the other two
+depend on it existing at all.
+
+`git init -b main`, root commit 61b9edd, 46 files / 35,829 lines.
+The one real decision, made carefully rather than a blind `git add
+-A`: Business_Report.csv is 233MB, over GitHub's 100MB hard push
+limit and fundamentally unsuited to git history regardless (never
+actually shrinks a repo after being committed, even once deleted
+later) -- gitignored, documented in CLAUDE.md/AGENTS.md instead
+(place it at the repo root manually, nothing else about the schema/
+location changes). Same reasoning for .env -- gitignored, with a
+committed .env.example carrying the same (already-default, non-
+secret) values, so the pattern is right from day one rather than
+retrofitted the first time a real credential gets added later.
+
+Also added, both deliberately timed to happen BEFORE the first
+commit so neither needs a disruptive one-time reformat/rewrite
+commit later: .gitattributes (normalizes line endings to LF in the
+repo regardless of committer's OS) and a full .gitignore (.venv/,
+logs/, *.log, .ruff_cache/, .pytest_cache/ pre-emptively -- pytest
+doesn't exist yet but is next on Tier 1).
+
+Verified rather than assumed: `git check-ignore -v` run explicitly
+against Business_Report.csv/.env/.venv/logs/run_server.log/
+.ruff_cache before committing, not just eyeballing `git status`'s
+absence of them. Post-commit, `.git` is 2.7MB -- confirms the CSV
+never touched it at any point, not just that it's excluded now.
+
+Found and fixed stale docs the git-init itself made wrong: CLAUDE.md
+and AGENTS.md both opened with "not a git repository yet" -- updated
+both, plus AGENTS.md's cross-reference note. notes.txt's own
+2026-08-18 "CURRENT REPO STATE" snapshot still says the old thing --
+left as-is deliberately, it's a dated historical entry, not a
+living doc; this new entry is the up-to-date one.
+
+Next on Tier 1: pytest suite around TreasuryEngine's pure functions,
+then API-level tests, then CI. Paused here for a checkpoint/review
+before continuing, per "implement one by one."
+
+=================================================================
+PROGRESS (2026-08-27, later): pytest suite -- TODO.md Tier 1, item
+2 of 3 ("test the APIs")
+=================================================================
+38 tests, tests/ at repo root, ~5s to run. The one decision that
+shaped everything else: tests must NOT depend on the real
+Business_Report.csv (233MB, gitignored as of the git-init pass
+above) -- a fresh clone or CI runner won't have that file, so
+anything relying on it would only ever pass on this one machine.
+Built tests/conftest.py's fixture_df instead: a small (240-row),
+fully synthetic, fixed-seed dataset -- real country names though
+(AUSTRALIA/UNITED ARAB EMIRATES -> NEPAL, business_data_send.py's
+own original corridor), not placeholder ones, since a first attempt
+with "TESTLANDIA"-style names would've made the holiday-resolution
+tests meaningless (pycountry's fuzzy search would just fail to
+match ANY of them, so "receiver_country resolves NP" and "agent
+resolves nothing at all" would look identical -- caught this before
+writing the tests, not after). Wired into the API via FastAPI's own
+dependency_overrides on get_repository -- the app under test never
+knows it's not talking to CSVDataRepository.
+
+tests/test_engine.py -- prepare_data's gap-fill/status-filter/
+ValueError, suggest_baseline's median-resists-a-spike behavior, and
+critically simulate_liquidity's exact formula (safety_stock,
+daily_shortfall, cumulative_shortfall, liquidity_to_volume_ratio
+incl. yhat==0 -> NaN) via a hand-built DataFrame with NO Prophet
+involved at all -- sidesteps the non-determinism in Prophet's own
+confidence-interval sampling (found while writing the user manual,
+see the 2026-08-19 entry) by never calling Prophet in this file.
+
+tests/test_api_*.py -- real TestClient calls against every route:
+success shapes, the 422/503 exception-hierarchy mapping, /health
+vs /ready's liveness-vs-readiness distinction, dataset-summary
+exact-value checks. One test doubles as a regression lock on real,
+previously hand-verified behavior: by-Dimension holiday resolution
+(receiver_country -> receiver holidays only, corridor -> both,
+agent -> neither) -- exactly what got documented in the user
+manual's Section 8, now enforced automatically instead of only
+ever being true because someone checked it once by hand.
+
+tests/test_openapi.py -- automates the openapi-spec-validator +
+"every field has a description" + "every operation has summary/
+tags/operationId" checks that were previously one-off manual audit
+passes (see the 2026-08-20 API-review entry) -- same checks, now
+permanent.
+
+Real bug on the very first run -- in the test suite, not the app,
+which is exactly the point of having one: a baseline-window test
+used window_days=99999, forgetting BaselineSuggestionRequest's own
+le=365 cap. Fixed to use 365 -- same clamp-to-available-history
+behavior demonstrated either way, since the fixture only has 120
+days regardless.
+
+pytest + httpx added to requirements-dev.txt. pytest config lives
+in pyproject.toml (testpaths, a "slow" marker reserved for any
+future test that DOES need the real CSV, unused so far) --
+consistent with ruff's config already living there rather than a
+separate pytest.ini. .gitignore's "# Test file" placeholder (left
+by the user, presumably anticipating this) filled in with
+.coverage/htmlcov/ for when coverage reporting gets added later --
+not done in this pass, deliberately deferred.
+
+ruff/flake8 clean on tests/ too, not just app/.
+
+Next on Tier 1: CI (GitHub Actions) wiring ruff + flake8 + this
+suite + openapi-spec-validator together so all of this runs on
+every push instead of only when someone remembers to run it by hand.
+
+=================================================================
+PROGRESS (2026-08-27, later still): CI -- TODO.md Tier 1 complete
+(git -> pytest -> CI, all three done)
+=================================================================
+.github/workflows/ci.yml. ubuntu-latest, Python 3.14 (the project's
+actual runtime -- deliberately not a version matrix, since this is
+an application pinned to one interpreter, not a library meant to
+support several). Triggers: push/PR to main, plus workflow_dispatch
+for a manual run. Three steps: ruff check app/ tests/, flake8
+app/ tests/, pytest tests/ -v -- the last one already covers live
+OpenAPI-schema validation too (tests/test_openapi.py), so no
+separate step was needed for that despite the original TODO.md
+wording implying one.
+
+Verified rather than assumed: parsed the YAML (valid, right
+job/step structure) and ran the exact three commands verbatim as
+the workflow specifies them -- all pass, same as every prior check
+this session, just now automated.
+
+Two things disclosed honestly rather than glossed over, both now in
+TODO.md's own entry:
+1. This doesn't run anywhere yet -- no GitHub remote is configured,
+   repo is local-only. The workflow file existing is necessary but
+   not sufficient; it needs an actual push to a GitHub repo with
+   Actions enabled before it's really "CI" and not just a config file.
+2. Whether `pip install prophet` cleanly bootstraps a working
+   CmdStan binary on a genuinely fresh machine (no pre-existing
+   venv) was NOT independently verified here -- this project's own
+   .venv already had Prophet working long before CI was written, so
+   that exact first-run path has never actually been observed in
+   this project. Expected to work (modern prophet/cmdstanpy
+   auto-installs CmdStan on first use), not confirmed to work.
+   Didn't tear down the only working venv just to check, since that
+   risks breaking the actual dev environment for a speculative
+   verification -- the real test is the first genuine push.
+
+Tier 1 (git init -> pytest -> CI) is now fully done, in the order
+laid out when TODO.md was written. Tier 2/3/4 remain, see TODO.md
+for the current list and reasoning behind each.
+
+=================================================================
+PROGRESS (2026-08-27, later still): Tier 4's Postgres item replaced
+with a DuckDB + Parquet design doc -- no live Postgres available,
+and it turned out Postgres was never actually the requirement
+User asked directly: no live Postgres to test against, is there
+another option. Reframed the actual goal first (fix the CSV-in-
+memory ceiling) before answering which vehicle -- Postgres was
+always just the assumed one, not a requirement. Compared three
+zero-infrastructure options (Parquet+pandas alone, SQLite, DuckDB)
+honestly, including the lower-effort ones, not just pushing the
+one I liked -- verified duckdb actually installs cleanly on this
+project's Python 3.14 (prebuilt wheel) before recommending it.
+
+User chose DuckDB + Parquet, then asked the one question that
+actually shapes the design: what does adding historic or newest
+data look like. Worked out the real answer before writing anything
+-- DuckDB can query a whole folder of Parquet files as one table via
+a glob pattern, so adding data (either direction) becomes "drop a
+new file in a folder," no merge/rebuild step, matching (and
+slightly improving on) CSVDataRepository's existing "just append,
+it's picked up automatically" ergonomic. Decided upfront, before
+building anything: dedup by Control_No at query time, since an
+accidentally-overlapping export would otherwise double-count.
+
+Asked to draft this as a real design doc comparing old vs new
+architecture, HTML with diagrams. Loaded the artifact-design +
+artifact-diagramming skills first rather than freehanding it --
+treated as a "plan/memo" treatment (polished typographic hierarchy,
+not an editorial/hero treatment), IBM Plex Mono + IBM Plex Sans
+(technical/engineering pairing, deliberately not Inter or another
+overused "safe" face), a two-color comparison system running through
+every diagram and table (muted taupe for "today," warm amber for
+"proposed," nodding to DuckDB's own brand color without copying it
+outright) instead of the project's single accent blue standing in
+for both sides of a before/after comparison. Both light and dark
+themes fully implemented, not just the manual's earlier "shareable
+docs stay light" choice -- this one has a real audience for dark
+mode too.
+
+Four diagrams, each earning its place per the diagramming skill's
+own test (depicts a real mechanism or a real difference, not a
+restated option list): today's cold-load request flow, the
+proposed pushdown-query flow, the two "adding data" workflows
+literally side by side (directly answering the question that
+prompted this doc), and the DataRepository interface boundary
+showing exactly what does and doesn't change.
+
+Real bug caught by actually rendering it, not by reading the SVG
+source: several arrow labels sat exactly on top of their own
+connector lines (text and line sharing the same x-coordinate) --
+found via Playwright screenshots in both themes, fixed with a
+text-halo technique (a background rect matching the surface color,
+painted between the line and the text) rather than repositioning
+and re-checking every label by eye. Re-verified after the fix, both
+themes, zero console errors.
+
+Saved to docs/csv-to-duckdb-migration-design.html (the permanent,
+standalone, doctype-complete copy) and published as an Artifact
+(a fragment version with the wrapper tags stripped, per the
+Artifact tool's own rule about not double-wrapping) at
+https://claude.ai/code/artifact/09a93abd-e461-4da7-bcfb-9ee0ea63df87 .
+TODO.md's Postgres entry rewritten to point at this doc instead of
+describing Postgres directly. Not yet implemented -- this was the
+design pass, building DuckDBDataRepository itself is still open.
+
+=================================================================
+PROGRESS (2026-08-27, later still): "CSV to Forecast" architecture
+doc -- how the current pipeline actually fits and forecasts
+=================================================================
+Asked directly, with app/forecasting/config.py open: a doc showing
+how CSV data becomes a Prophet fit/forecast, images/SVG where
+useful, current-system architecture. Different job from the
+DuckDB doc (that one compares two options; this one explains one
+real pipeline in depth), so no current/proposed two-color system
+this time -- reused the same base identity (IBM Plex Mono/Sans,
+warm paper tokens) for family consistency across this project's
+technical docs, but the one accent is the dashboard's own real
+--series2 orange (deepened slightly for text contrast), reused
+deliberately so "the Prophet/forecast stage" reads as the same
+color here as it does in the live product's own charts.
+
+Five diagrams, each a real mechanism, verified against the actual
+code before drawing (app/forecasting/engine.py, holidays.py,
+config.py) rather than from memory: the five-stage pipeline end to
+end; prepare_data's filter -> groupby -> reindex-with-zero-fill
+mechanism; the three-source holiday concat (matches the by-Dimension
+resolution table already established for the migration doc and the
+user manual -- same real finding, now in a third place); Prophet's
+own additive decomposition (trend+weekly+yearly+holidays -> yhat,
+interval_width -> the band), which is the actual mechanism behind
+the dashboard's live Trend Decomposition chart, not a separate
+model; and yhat_upper -> safety_stock -> shortfall. Real numbers
+throughout (the same verified weekly-seasonality and interval-width
+figures from the user-manual work), not fixture/invented ones,
+since this describes the real system.
+
+Two real, different bugs this time, both caught by actually
+rendering and looking, not from reading the SVG source:
+1. A label sat fully INSIDE the box below it, not just crossing a
+   line -- an arithmetic mistake in the vertical spacing plan
+   (didn't leave room between an arrow's label and the next box's
+   own y-position), not a text-halo problem like the migration
+   doc's bugs. Recomputed the whole pipeline diagram's vertical
+   spacing from scratch with a consistent box-height/gap pattern
+   rather than patching each collision individually.
+2. A label ("reindex to a continuous calendar") was clipped by the
+   viewBox's right edge -- default text-anchor="start" pushed it
+   past the drawn width. Also found: a 5-column calendar strip
+   accidentally had 5 divider lines instead of 4, creating a 6th,
+   much-narrower empty column at the edge -- off-by-one in the
+   divider count for the number of columns wanted.
+Re-verified everything after each fix, both themes, zero console
+errors both times.
+
+docs/csv-to-forecast-architecture.html (permanent copy) + published
+at https://claude.ai/code/artifact/e47329bb-1976-4d9a-8762-d43d1dfc9817 .
+
+PROGRESS (2026-08-27, later still): forecast accuracy evaluation
+(backtest) -- engine method, endpoint, dashboard card, docs
+=================================================================
+Raised as a question first ("Did we also calculate the
+Evaluations?"), answered honestly (no, nothing existed), proposed a
+concrete plan, then built on "lets start building it."
+
+Method chosen: a single train/test holdout, not Prophet's own
+rolling-origin cross_validation()/performance_metrics()
+(prophet.diagnostics) -- that refits repeatedly and can take
+minutes on one corridor, which fits an offline batch job, not an
+interactive dashboard button. A single holdout costs roughly one
+extra forecast run (confirmed live: ~2s warm cache, ~15s only on a
+cold CSV load same as any other endpoint). Documented as a real
+caveat, not hidden: one held-out window is itself only a sample,
+same underlying issue as the existing sparse/spiky-corridor
+caveat, just on the test side instead of the funding side.
+
+TreasuryEngine.evaluate_accuracy() (app/forecasting/engine.py):
+hides the most recent eval_days of real history, fits on
+everything before that, forecasts exactly the hidden window,
+compares against what actually happened. train_forecast() gained
+an optional horizon_days override (backward compatible, defaults
+to the config's own value when omitted) so the backtest fit can
+project forward exactly as many days as it held out, independent
+of whatever horizon_days the caller's main config specifies.
+
+Metrics, each a deliberate choice:
+- MAPE, computed over non-zero-actual test days only. Real thin
+  corridors have true zero-volume days (prepare_data's own
+  reindex-with-zero-fill), and percentage error is undefined at
+  actual=0 -- considered SMAPE (handles zero gracefully) but chose
+  MAPE-with-exclusion-and-disclosure instead, since the dashboard's
+  audience is treasury managers, not statisticians, and "excluded
+  N zero-volume days, here's the count" is far more explainable
+  than introducing SMAPE as a new concept.
+- RMSE, computed over every day, no zero-actual blind spot -- the
+  "always trustworthy" companion metric.
+- interval_coverage_pct: actual vs. [yhat_lower, yhat_upper],
+  checked against the configured interval_width -- tests whether
+  Prophet's own stated uncertainty is honest.
+- safety_stock_coverage_pct: actual vs. the real funding
+  recommendation (yhat_upper + safety_buffer_pct) -- more directly
+  actionable than interval coverage alone, since it answers "would
+  the funding plan actually have been enough," this app's real
+  purpose. Deliberately reported alongside interval_coverage_pct
+  rather than instead of it.
+- A naive-baseline comparison: a flat prediction (trailing mean,
+  same as suggest_baseline(method="average")) over the same window,
+  with its own MAPE/RMSE, so a caller can see whether Prophet is
+  actually earning its keep over "just fund the recent average
+  every day." Chose this over a generic persistence-forecast
+  baseline specifically because it ties back to a decision this
+  project's own users might actually be weighing.
+
+Schema design: EvaluationRequest(DimensionFilters) duplicates
+ForecastRequest's model-shaping fields (seasonality, holidays,
+changepoint_prior_scale, interval_width, growth,
+baseline_funding_level, safety_buffer_pct) rather than subclassing
+ForecastRequest -- considered inheriting directly, but
+horizon_days there means "days to forecast into the future," which
+isn't what this endpoint does, and an inherited-but-misleading
+field in the OpenAPI schema would have been a real regression
+against this session's own documentation-completeness discipline.
+Considered a shared mixin base class to avoid the duplication
+entirely; deferred as a bigger, riskier refactor of already-shipped
+schemas than "lets start building it" called for -- noted as a
+nice-to-have, not blocking.
+
+New endpoint: POST /api/v1/forecast/evaluate, same
+_run_or_raise/ValueError->422/DataSourceError->503/
+ForecastingError->500 pattern as every other route.
+operation_id=evaluateForecastAccuracy. Verified against the live
+/openapi.json: zero missing descriptions on the new schemas,
+request+response examples both present, matching the completeness
+bar set by the 2026-08-20 API review.
+
+Two real bugs found and fixed while writing tests (the whole point
+of a test suite):
+1. App bug -- within_interval/within_safety_stock and the two
+   coverage percentages were computed from unrounded floats while
+   the response displays 2-decimal-rounded values, so a genuine
+   boundary case (actual and yhat_upper both round to the same
+   displayed number) could show "outside the interval" next to two
+   equal-looking numbers. Fixed by rounding first, then comparing/
+   aggregating on the rounded values, so the response is always
+   internally self-consistent with what it displays -- not just a
+   test-tolerance workaround.
+2. Two test bugs, same "test bug, not app bug" class as the
+   window_days=99999 one from the pytest-suite session: (a) placing
+   a zero-actual day on the very last day of a filter's history
+   doesn't reappear as a zero-fill row, since prepare_data()'s
+   reindex only spans [min(present dates), max(present dates)] --
+   the constructed test data needed its last day anchored real; (b)
+   an exact-equality assertion (rel=1e-6) on two independently-
+   rounded values (yhat_upper and safety_stock, each rounded
+   separately in the response) needed a cent (abs=0.02) of
+   tolerance instead, once rounding happened before instead of
+   after the comparison.
+
+Live verification against the real CSV (not just the synthetic
+fixture) turned up a real, useful finding: on NEPAL/
+receiver_country with a 14-day holdout, interval coverage came
+back well below the configured 80% target (35.7%), and Prophet
+lost to the naive baseline on both MAPE and RMSE. Not a bug --
+exactly the kind of signal this feature exists to surface, and a
+concrete illustration of the "single holdout is itself a sample"
+caveat in action on a corridor with plenty of history.
+
+10 new tests (5 engine-level, 5 API-level) -- 48 total, all
+passing; ruff/flake8 both stayed clean throughout.
+
+Dashboard: new "Evaluate forecast accuracy (backtest)" card, its
+own collapsible section below the main results, working
+standalone (doesn't require a forecast to have been run first,
+same as the existing "Suggest" baseline auto-fill). Refactored
+buildRequestBody() to share a new buildModelConfigFields() helper
+with the new buildEvalRequestBody(), so both requests reflect
+identical model settings rather than risking two copies drifting
+apart. Five stat tiles (MAPE, RMSE, interval coverage, safety-stock
+coverage, vs. naive baseline), the last three as three-tier
+good/warning/critical badges via a new shared makeBadge() helper
+(refactored out of the existing shortfall badge, which used to
+build its badge markup inline). An actual-vs-forecast Plotly chart
+over the held-out window, same shaded-interval-band technique as
+the existing funding-gap chart (zero-width fill trace, hovermode
+"x unified", themed via getThemeColors()), with red markers on
+days actual volume fell outside the model's own expected range.
+New glossary entries (evaluate_accuracy, eval_days, eval_mape,
+eval_rmse, eval_interval_coverage, eval_safety_stock_coverage,
+eval_naive_baseline), same single-source-of-truth GLOSSARY object
+feeding both inline tooltips and the full glossary section.
+
+Verified with Playwright (installed chromium in this session's
+.venv -- wasn't present before): both light and dark themes
+screenshotted and visually checked, zero console errors either
+run, plus the error path (eval_days above its own max -> visible
+error banner with the Pydantic message) and info-tooltip wiring
+(hover -> correct glossary text) both exercised directly.
+
+Docs updated: app/README.md ("The engine" gained an
+evaluate_accuracy() bullet, API table gained the new endpoint,
+"Dashboard" section gained a paragraph on the new card, "Known
+caveats" gained the single-holdout-is-a-sample entry cross-
+referencing the existing sparse/spiky-corridor one), CLAUDE.md's
+Architecture section, TODO.md (new checked-off Tier 1 entry with
+full implementation notes, same style as the existing three),
+this file, and docs/csv-to-forecast-architecture.html (new
+evaluation section + diagram, republished to the existing artifact
+URL -- see below).
+
+PROGRESS (2026-08-27, later still): User Manual gained a new
+section 13, "Evaluating Forecast Accuracy (Backtest)" -- plus a
+real mistake made and fixed against the live Design-canvas artifact
+=================================================================
+Asked directly ("is there the explanation regarding 'Evaluate
+forecast accuracy'... details related to 'days to hold out'...
+add a new section if required") after the previous turn's summary
+had explicitly flagged the user manual as not yet updated for the
+evaluation feature.
+
+New section 13 (renumbering old 13/14/15 -> 14/15/16, and the TOC):
+"Days to hold out" reference table, a train/test-split diagram (own
+visual language -- system-ui, #2a78d6/#eb6834/#898781 literals, not
+the IBM Plex Mono/CSS-var system the architecture doc uses, since
+this is a different document with its own established identity),
+a five-row results table (MAPE/RMSE/interval coverage/safety-stock
+coverage/vs. naive baseline), a "reading the backtest chart"
+diagram explaining the Actual/Forecast/range/naive-baseline lines
+and the red "outside the interval" markers, the same real NEPAL/
+14-day worked example verified live in the previous session, and
+the same single-holdout caveat. Also added one new scenario to
+(renumbered) Section 14: "The backtest shows low coverage, or
+Prophet losing to the naive baseline."
+
+One real diagram bug, caught by actually rendering (not by reading
+the SVG source) -- same discipline as every prior doc this session:
+the "Actual" label in the backtest-chart diagram was positioned at
+a coordinate nowhere near its own line (svg y=200, well below the
+line's actual y=~90-150 range), landing near the baseline instead
+-- looked like it was mislabeling the wrong line. Fixed by
+computing the actual path's y at that x and moving the label
+(plus a text-halo rect) directly onto it.
+
+A real mistake, made and then fixed, worth recording plainly rather
+than glossing over: this manual exists as TWO artifacts, not one --
+docs/treasury-dashboard-user-manual.html (a plain static file,
+republished as its own Artifact) and a separate, live, WYSIWYG-
+editable Design-canvas artifact at the SAME-looking
+claude.ai/code/artifact/a953292e-... URL that this file's own
+2026-08-19 PROGRESS entries already documented as a *different*
+thing (the seeded ~2.2MB editor payload, built from
+docs/user-manual-design/Main.dc.html + canvas.json). Mid-session,
+after finishing the plain copy's new section, republished a plain
+content fragment to that URL without re-checking which artifact it
+actually was -- overwriting the live canvas's editor runtime with
+inert static HTML (the page still rendered fine, but Save/Export
+and the WYSIWYG editor were gone, since the actual ~2MB payload
+code was replaced). Caught immediately by the publish tool's own
+"stored capability declaration... contract 0.1.31" response
+looking exactly like the Design-canvas's own documented behavior,
+not a plain-Artifact one -- cross-checked against this file's own
+history (grep for the URL) before acting further, which confirmed
+it.
+
+Fixed properly, not papered over: added the same new section 13
+content to Main.dc.html too (this time in its native <sc-for>/
+templated form -- two new data arrays, evalInputs and evalResults,
+plus glossary/quickRef entries), verified the embedded renderVals()
+script was still syntactically valid by actually evaluating it in
+Node (a stubbed DCLogic base class + eval(), same technique the
+2026-08-19 plain-copy conversion used, not a regex parse), re-
+seeded a fresh payload with the design skill's own seed-canvas.mjs
+(never hand-edit an already-seeded output file), ran --check, and
+republished to the same URL with contract "0.1.31" and no
+capabilities override (so the existing self+downloads declaration
+carries forward correctly, per the design skill's own "canvas that
+lives on the Artifact" update protocol). Verified the fix by
+fetching the URL back afterward and confirming the restored page
+now shows the full design-canvas README/appifact-capabilities/
+appifact-style markers and is back to ~2.2MB, not my earlier ~95KB
+plain fragment. The temporary local seed file used to publish was
+deleted afterward -- docs/user-manual-design/ holds only the source
+(Main.dc.html + canvas.json) again, per this file's own
+2026-08-19 convention.
+
+Real lesson, worth remembering explicitly: an artifact URL looking
+like a plain page from its content alone isn't enough to assume
+it's a plain Artifact publish -- checking the publish tool's own
+response for capability/contract carry-forward language, and
+cross-checking this file's history for that URL, are exactly the
+signals that would have caught this *before* publishing, not after.
+
+Both docs/treasury-dashboard-user-manual.html (verified with
+Playwright, light mode -- confirmed this doc has no dark theme at
+all, by design, not a regression) and docs/user-manual-design/
+Main.dc.html are now in sync with the same new section 13 content.
+
+=================================================================
+OPEN QUESTIONS / DECISIONS FOR NEXT SESSION
+=================================================================
+PROGRESS (2026-08-26, later still): TODO.md added -- the actionable
+checklist version of everything below, grouped by leverage (tests +
+git + CI first, since those compound on everything else; then
+structure/code-quality/product-completeness items). Written after
+rating the project's structure/code/app-as-a-whole and being asked
+what would raise those scores. Keep it in sync with this section --
+TODO.md is the checklist, this section is the narrative reasoning
+behind each item.
+
+Phase 1 (remaining):
+- ~~API framework choice~~ -- FastAPI, built.
+- ~~Default dashboard~~ -- plain HTML/JS, built (see PROGRESS above).
+  A richer one (Streamlit/etc.) is a separate, still-open decision.
+- Database choice (Postgres? SQLite for local dev? something else)
+  and how Business_Report.csv gets loaded/migrated in. The
+  DataRepository interface is ready either way (app/data/repository.py).
+- Auth/access control model (single user for now, or multi-user
+  from the start?) — even a minimal version, per phasing note above.
+  Nothing implemented yet -- app/ has no auth (including the new
+  dashboard, which currently has no login of its own either).
+- Deployment target (local only for now, or cloud from day one?).
+- Repo/project scaffolding: initialize git (still not done), decide
+  if the current app/ layout is the final one or needs restructuring
+  as more modules are added.
+- OpenAPI contact/license/terms_of_service: not set (see the
+  2026-08-20 API-review PROGRESS entry) -- who's the support
+  contact, and is there a license for this API at all (internal-only
+  tool, so maybe none is needed)? Deliberately left unset rather
+  than guessed.
+
+Phase 2 (deferred, revisit once Phase 1 is running):
+- What exactly the MCP server(s) should expose — read-only query
+  tools, aggregation-only access, row-level restrictions, etc.
+- Which LLM/agent framework or approach drives the "agentic" layer.

@@ -1,0 +1,1083 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    :root {
+      --page:#f9f9f7; --surface:#fcfcfb; --text-primary:#0b0b0b; --text-secondary:#52514e;
+      --text-muted:#898781; --hairline:#e1e0d9; --border-ring:rgba(11,11,11,0.10);
+      --accent:#2a78d6; --accent-dark:#184f95; --series2:#eb6834; --good:#0ca30c;
+      --warn:#c98500; --crit:#d03b3b; --tip-bg:#eef4fb; --caution-bg:#fdf1e8;
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--page); color:var(--text-primary);
+      font-family: system-ui,-apple-system,"Segoe UI",sans-serif; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { color: var(--accent-dark); text-decoration: underline; }
+    .doc { max-width: 880px; margin: 0 auto; padding: 56px 40px 90px; }
+    h1 { font-size: 2rem; margin: 0 0 10px; line-height: 1.2; }
+    h2 { font-size: 1.35rem; margin: 0; padding: 40px 0 16px; border-top: 1px solid var(--hairline);
+      margin-top: 40px; }
+    h2:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+    h3 { font-size: 1.02rem; margin: 26px 0 10px; }
+    p { line-height: 1.65; color: var(--text-secondary); margin: 0 0 14px; }
+    .lede { font-size: 1.05rem; color: var(--text-secondary); margin: 0; text-align: center; }
+    .card { background: var(--surface); border: 1px solid var(--border-ring); border-radius: 10px;
+      padding: 22px 26px; margin: 18px 0; }
+    table { width: 100%; border-collapse: collapse; margin: 14px 0 22px; font-size: 0.9rem; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--hairline);
+      vertical-align: top; line-height: 1.5; }
+    th { color: var(--text-secondary); font-size: 0.72rem; text-transform: uppercase;
+      letter-spacing: 0.04em; font-weight: 600; }
+    td.mono { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    code { background: var(--page); border: 1px solid var(--hairline); border-radius: 4px;
+      padding: 1px 6px; font-size: 0.88em; }
+    .tag { display: inline-block; background: var(--page); border: 1px solid var(--hairline);
+      border-radius: 999px; padding: 3px 12px; font-size: 0.76rem; letter-spacing: 0.06em;
+      color: var(--text-secondary); font-weight: 600; }
+    .callout { border-radius: 8px; padding: 14px 18px; margin: 16px 0; font-size: 0.92rem;
+      color: var(--text-secondary); display: flex; gap: 12px; align-items: flex-start; }
+    .callout.tip { background: var(--tip-bg); }
+    .callout.caution { background: var(--caution-bg); }
+    .callout svg { flex: none; margin-top: 2px; }
+    .diagram { background: var(--surface); border: 1px solid var(--border-ring); border-radius: 10px;
+      padding: 20px; margin: 18px 0; }
+    .diagram svg { width: 100%; height: auto; display: block; }
+    .diagram figcaption { font-size: 0.82rem; color: var(--text-muted); text-align: center;
+      margin-top: 10px; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem;
+      font-weight: 600; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--hairline); }
+    .badge .dot { width: 7px; height: 7px; border-radius: 50%; }
+    .badge.good { color: var(--good); } .badge.good .dot { background: var(--good); }
+    .badge.crit { color: var(--crit); } .badge.crit .dot { background: var(--crit); }
+    .toc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 32px; margin: 6px 0 0;
+      padding: 0; list-style: none; }
+    .toc-grid li { font-size: 0.92rem; padding: 5px 0; border-bottom: 1px dotted var(--hairline); }
+    .toc-grid .n { color: var(--text-muted); font-variant-numeric: tabular-nums; margin-right: 8px; }
+    .foot { margin-top: 64px; padding-top: 22px; border-top: 1px solid var(--hairline);
+      text-align: center; color: var(--text-muted); font-size: 0.8rem; }
+    ul.plain { margin: 0 0 14px; padding-left: 20px; color: var(--text-secondary); line-height: 1.65; }
+    ul.plain li { margin-bottom: 6px; }
+    .range-pill { display:inline-block; background:var(--page); border:1px solid var(--hairline);
+      border-radius: 6px; padding: 1px 8px; font-size: 0.85em; font-variant-numeric: tabular-nums; }
+  </style>
+</helmet>
+
+<div class="doc">
+
+  <div style="text-align:center; margin-bottom:44px;">
+    <span class="tag">USER MANUAL</span>
+    <h1 style="margin-top:16px;">Global Treasury Forecasting &amp; Liquidity Engine</h1>
+    <p class="lede">A complete, plain-language guide to the Treasury Management dashboard —<br>
+      every input, every output, and how to read them.</p>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0;">Contents</h3>
+    <ul class="toc-grid">
+      <li><span class="n">01</span><a href="#welcome">What this dashboard does</a></li>
+      <li><span class="n">02</span><a href="#primer">A quick primer, for beginners</a></li>
+      <li><span class="n">03</span><a href="#quickstart">Quick start</a></li>
+      <li><span class="n">04</span><a href="#dimensions">The three views</a></li>
+      <li><span class="n">05</span><a href="#core-inputs">Core inputs reference</a></li>
+      <li><span class="n">06</span><a href="#baseline-suggest">The "Suggest" auto-fill</a></li>
+      <li><span class="n">07</span><a href="#advanced">Advanced settings reference</a></li>
+      <li><span class="n">08</span><a href="#advanced-depth">Advanced settings, in depth</a></li>
+      <li><span class="n">09</span><a href="#concept">How the numbers relate</a></li>
+      <li><span class="n">10</span><a href="#results">Reading the results</a></li>
+      <li><span class="n">11</span><a href="#charts">Reading the charts</a></li>
+      <li><span class="n">12</span><a href="#data-table">The data table</a></li>
+      <li><span class="n">13</span><a href="#evaluate">Evaluating forecast accuracy</a></li>
+      <li><span class="n">14</span><a href="#scenarios">Common scenarios</a></li>
+      <li><span class="n">15</span><a href="#glossary">Glossary</a></li>
+      <li><span class="n">16</span><a href="#quickref">Quick reference card</a></li>
+    </ul>
+  </div>
+
+  <h2 id="welcome">1. What This Dashboard Does</h2>
+  <p>This dashboard forecasts how much money a remittance business will move through a given
+    <strong>receiving country</strong>, <strong>corridor</strong> (a sending &rarr; receiving
+    country pair), or <strong>payout agent</strong> over a chosen time horizon — and indicates
+    whether the funding planned for that period would be enough to cover it.</p>
+  <p>Under the hood it uses <strong>Prophet</strong>, a statistical forecasting model, trained on
+    the business's actual historical transaction data. Understanding Prophet itself is not
+    required to use the dashboard — only the handful of inputs described below, and how to read
+    the three outputs it returns: a set of headline numbers, two charts, and a day-by-day table.</p>
+  <div class="callout tip">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#2a78d6" stroke-width="2"/><path d="M12 8v5" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16" r="1.1" fill="#2a78d6"/></svg>
+    <div>Every field in the live dashboard has a small <strong>"i"</strong> icon next to it —
+      hovering or tapping it surfaces the same explanation found in this manual, without leaving the page.</div>
+  </div>
+
+  <h2 id="primer">2. A Quick Primer, for Beginners</h2>
+  <p>For readers new to treasury/fintech operations, a few terms are worth grounding before
+    working through the form:</p>
+  <ul class="plain">
+    <li><strong>Corridor</strong> — the path money takes from one country to another, e.g.
+      United Arab Emirates &rarr; Nepal. A remittance business typically sends from a small
+      number of countries but pays out into many more.</li>
+    <li><strong>Liquidity / funding</strong> — the actual cash a treasury team needs to have on
+      hand, in the right place, to pay out transactions as they land. Too little, and payouts
+      stall or fail; too much sitting idle is wasted capital.</li>
+    <li><strong>Forecasting volume</strong> — predicting how much money is likely to flow through
+      a corridor tomorrow, next week, or next quarter, based on how it's behaved historically
+      (including patterns like weekday effects, holidays, and end-of-month payday spikes).</li>
+    <li><strong>Safety stock</strong> — a concept borrowed from inventory management: instead of
+      funding for the <em>average</em> day, the funding target is set to a <em>cautious,
+      risk-adjusted</em> estimate, so an unusually busy day does not create a shortfall.</li>
+  </ul>
+  <p>Everything this dashboard does is built from those four ideas: forecast the corridor's
+    volume, add a safety margin, compare it against the funding actually planned, and surface
+    the gap.</p>
+
+  <h2 id="quickstart">3. Quick Start</h2>
+  <p>Five steps from opening the dashboard to a funding decision:</p>
+  <div class="diagram">
+    <svg viewBox="0 0 940 168" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#898781"/>
+        </marker>
+      </defs>
+      <g font-family="system-ui, sans-serif">
+        <!-- connectors -->
+        <line x1="184" y1="84" x2="204" y2="84" stroke="#898781" stroke-width="2" marker-end="url(#arrow)"/>
+        <line x1="374" y1="84" x2="394" y2="84" stroke="#898781" stroke-width="2" marker-end="url(#arrow)"/>
+        <line x1="564" y1="84" x2="584" y2="84" stroke="#898781" stroke-width="2" marker-end="url(#arrow)"/>
+        <line x1="754" y1="84" x2="774" y2="84" stroke="#898781" stroke-width="2" marker-end="url(#arrow)"/>
+        <!-- box 1 -->
+        <rect x="10" y="34" width="174" height="100" rx="10" fill="#f9f9f7" stroke="#2a78d6" stroke-width="1.5"/>
+        <text x="97" y="60" text-anchor="middle" font-size="12" font-weight="700" fill="#2a78d6">STEP 1</text>
+        <text x="97" y="84" text-anchor="middle" font-size="12" fill="#0b0b0b">Selecting a</text>
+        <text x="97" y="101" text-anchor="middle" font-size="12" fill="#0b0b0b">Dimension</text>
+        <text x="97" y="118" text-anchor="middle" font-size="11" fill="#52514e">(what to forecast)</text>
+        <!-- box 2 -->
+        <rect x="200" y="34" width="174" height="100" rx="10" fill="#f9f9f7" stroke="#e1e0d9" stroke-width="1.5"/>
+        <text x="287" y="60" text-anchor="middle" font-size="12" font-weight="700" fill="#52514e">STEP 2</text>
+        <text x="287" y="84" text-anchor="middle" font-size="12" fill="#0b0b0b">Setting Horizon &amp;</text>
+        <text x="287" y="101" text-anchor="middle" font-size="12" fill="#0b0b0b">Baseline</text>
+        <text x="287" y="118" text-anchor="middle" font-size="11" fill="#52514e">(or using Suggest)</text>
+        <!-- box 3 -->
+        <rect x="390" y="34" width="174" height="100" rx="10" fill="#f9f9f7" stroke="#e1e0d9" stroke-width="1.5"/>
+        <text x="477" y="60" text-anchor="middle" font-size="12" font-weight="700" fill="#52514e">STEP 3</text>
+        <text x="477" y="84" text-anchor="middle" font-size="12" fill="#0b0b0b">(Optional) tuning</text>
+        <text x="477" y="101" text-anchor="middle" font-size="12" fill="#0b0b0b">Advanced settings</text>
+        <!-- box 4 -->
+        <rect x="580" y="34" width="174" height="100" rx="10" fill="#f9f9f7" stroke="#e1e0d9" stroke-width="1.5"/>
+        <text x="667" y="60" text-anchor="middle" font-size="12" font-weight="700" fill="#52514e">STEP 4</text>
+        <text x="667" y="90" text-anchor="middle" font-size="13" fill="#0b0b0b">Running</text>
+        <text x="667" y="108" text-anchor="middle" font-size="13" font-weight="600" fill="#0b0b0b">"Run forecast"</text>
+        <!-- box 5 -->
+        <rect x="770" y="34" width="164" height="100" rx="10" fill="#f9f9f7" stroke="#eb6834" stroke-width="1.5"/>
+        <text x="852" y="60" text-anchor="middle" font-size="12" font-weight="700" fill="#eb6834">STEP 5</text>
+        <text x="852" y="84" text-anchor="middle" font-size="12" fill="#0b0b0b">Reviewing results &amp;</text>
+        <text x="852" y="101" text-anchor="middle" font-size="12" fill="#0b0b0b">funding decision</text>
+      </g>
+    </svg>
+    <figcaption>The full workflow, start to finish. Steps 2 and 3 can be revisited any number of times before running the forecast.</figcaption>
+  </div>
+  <p>Advanced Settings do not need to be touched at all for a first forecast — every field there
+    has a sensible default. Completing Steps 1 and 2 and running the forecast is enough to begin;
+    tuning can follow from there.</p>
+
+  <h2 id="dimensions">4. Understanding the Three Views</h2>
+  <p><strong>Dimension</strong> is the first choice made on the form, and it decides which other
+    filters matter. All three answer the same underlying question — "how much volume, and is it
+    funded?" — just at a different level of aggregation.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 900 240" xmlns="http://www.w3.org/2000/svg">
+      <g font-family="system-ui, sans-serif">
+        <rect x="0" y="0" width="280" height="230" rx="10" fill="#f9f9f7" stroke="#2a78d6" stroke-width="1.5"/>
+        <text x="140" y="30" text-anchor="middle" font-size="13" font-weight="700" fill="#2a78d6">RECEIVER COUNTRY</text>
+        <circle cx="60" cy="70" r="7" fill="#c7d9ef"/><circle cx="90" cy="70" r="7" fill="#c7d9ef"/>
+        <circle cx="120" cy="70" r="7" fill="#c7d9ef"/><circle cx="150" cy="70" r="7" fill="#c7d9ef"/>
+        <circle cx="180" cy="70" r="7" fill="#c7d9ef"/><circle cx="210" cy="70" r="7" fill="#c7d9ef"/>
+        <text x="140" y="100" text-anchor="middle" font-size="10" fill="#898781">(every sending corridor)</text>
+        <line x1="140" y1="112" x2="140" y2="132" stroke="#898781" stroke-width="2"/>
+        <circle cx="140" cy="150" r="11" fill="#2a78d6"/>
+        <text x="140" y="180" text-anchor="middle" font-size="11" fill="#52514e">All corridors combined</text>
+        <text x="140" y="196" text-anchor="middle" font-size="11" fill="#52514e">into one destination,</text>
+        <text x="140" y="212" text-anchor="middle" font-size="11" fill="#52514e">e.g. all money into Nepal</text>
+
+        <rect x="310" y="0" width="280" height="230" rx="10" fill="#f9f9f7" stroke="#e1e0d9" stroke-width="1.5"/>
+        <text x="450" y="30" text-anchor="middle" font-size="13" font-weight="700" fill="#52514e">CORRIDOR</text>
+        <circle cx="400" cy="80" r="9" fill="#c7d9ef"/>
+        <line x1="410" y1="80" x2="490" y2="80" stroke="#898781" stroke-width="2" marker-end="url(#arrow)"/>
+        <circle cx="500" cy="80" r="9" fill="#f4c9ab"/>
+        <text x="450" y="60" text-anchor="middle" font-size="10" fill="#898781">Sending</text>
+        <text x="450" y="105" text-anchor="middle" font-size="10" fill="#898781">Receiving</text>
+        <text x="450" y="150" text-anchor="middle" font-size="11" fill="#52514e">One sending &rarr; one</text>
+        <text x="450" y="166" text-anchor="middle" font-size="11" fill="#52514e">receiving country pair,</text>
+        <text x="450" y="182" text-anchor="middle" font-size="11" fill="#52514e">e.g. UAE &rarr; Nepal only</text>
+
+        <rect x="620" y="0" width="280" height="230" rx="10" fill="#f9f9f7" stroke="#eb6834" stroke-width="1.5"/>
+        <text x="760" y="30" text-anchor="middle" font-size="13" font-weight="700" fill="#eb6834">AGENT</text>
+        <rect x="720" y="55" width="80" height="28" rx="6" fill="#f4c9ab"/>
+        <text x="760" y="74" text-anchor="middle" font-size="10" fill="#7a3414">Agent X</text>
+        <line x1="740" y1="83" x2="720" y2="105" stroke="#898781" stroke-width="1.5"/>
+        <line x1="760" y1="83" x2="760" y2="105" stroke="#898781" stroke-width="1.5"/>
+        <line x1="780" y1="83" x2="800" y2="105" stroke="#898781" stroke-width="1.5"/>
+        <circle cx="720" cy="112" r="6" fill="#c7d9ef"/><circle cx="760" cy="112" r="6" fill="#c7d9ef"/><circle cx="800" cy="112" r="6" fill="#c7d9ef"/>
+        <text x="760" y="150" text-anchor="middle" font-size="11" fill="#52514e">One payout agent,</text>
+        <text x="760" y="166" text-anchor="middle" font-size="11" fill="#52514e">across every corridor</text>
+        <text x="760" y="182" text-anchor="middle" font-size="11" fill="#52514e">it serves</text>
+      </g>
+    </svg>
+    <figcaption>Receiver Country gives a country-wide funding view, Corridor isolates one
+      sending&rarr;receiving pair, and Agent shows one payout partner's total load across every
+      corridor it serves.</figcaption>
+  </div>
+
+  <h2 id="core-inputs">5. Core Inputs Reference</h2>
+  <p>These sit in the main form, always visible.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 860 150" xmlns="http://www.w3.org/2000/svg">
+      <g font-family="system-ui, sans-serif">
+        <line x1="270" y1="75" x2="300" y2="75" stroke="#898781" stroke-width="2" marker-end="url(#arrow)"/>
+        <line x1="580" y1="75" x2="610" y2="75" stroke="#898781" stroke-width="2" marker-end="url(#arrow)"/>
+        <rect x="10" y="20" width="260" height="110" rx="10" fill="#f9f9f7" stroke="#2a78d6" stroke-width="1.5"/>
+        <text x="140" y="45" text-anchor="middle" font-size="13" font-weight="700" fill="#2a78d6">CORE INPUTS</text>
+        <text x="140" y="68" text-anchor="middle" font-size="11" fill="#52514e">Dimension + filters</text>
+        <text x="140" y="86" text-anchor="middle" font-size="11" fill="#52514e">Horizon (days)</text>
+        <text x="140" y="104" text-anchor="middle" font-size="11" fill="#52514e">Baseline funding level</text>
+        <text x="140" y="122" text-anchor="middle" font-size="10" fill="#898781">(this section)</text>
+        <rect x="300" y="20" width="280" height="110" rx="10" fill="#f9f9f7" stroke="#e1e0d9" stroke-width="1.5"/>
+        <text x="440" y="45" text-anchor="middle" font-size="13" font-weight="700" fill="#52514e">FORECASTING ENGINE</text>
+        <text x="440" y="70" text-anchor="middle" font-size="11" fill="#52514e">Prophet model, trained on</text>
+        <text x="440" y="88" text-anchor="middle" font-size="11" fill="#52514e">historical transactions,</text>
+        <text x="440" y="106" text-anchor="middle" font-size="11" fill="#52514e">shaped by Advanced Settings</text>
+        <rect x="610" y="20" width="240" height="110" rx="10" fill="#f9f9f7" stroke="#eb6834" stroke-width="1.5"/>
+        <text x="730" y="45" text-anchor="middle" font-size="13" font-weight="700" fill="#eb6834">RESULTS</text>
+        <text x="730" y="70" text-anchor="middle" font-size="11" fill="#52514e">Headline tiles</text>
+        <text x="730" y="88" text-anchor="middle" font-size="11" fill="#52514e">Two charts</text>
+        <text x="730" y="106" text-anchor="middle" font-size="11" fill="#52514e">Day-by-day table</text>
+      </g>
+    </svg>
+    <figcaption>Core Inputs and Advanced Settings both feed the same Forecasting Engine; this
+      section covers the inputs that are always visible.</figcaption>
+  </div>
+  <table>
+    <thead><tr><th>Field</th><th>What it means</th><th>Range / options</th><th>Default</th></tr></thead>
+    <tbody>
+      <sc-for list="{{coreParams}}" as="p" hint-placeholder-count="6">
+        <tr>
+          <td><strong>{{p.name}}</strong></td>
+          <td>{{p.meaning}}</td>
+          <td><span class="range-pill">{{p.range}}</span></td>
+          <td>{{p.default}}</td>
+        </tr>
+      </sc-for>
+    </tbody>
+  </table>
+  <div class="callout caution">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3l10 18H2L12 3z" stroke="#c98500" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4" stroke="#c98500" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17.3" r="1" fill="#c98500"/></svg>
+    <div><strong>Horizon is anchored to the data, not the calendar.</strong> "10 days" means the
+      10 days after the most recent transaction on record for whatever is currently selected —
+      not necessarily today. A corridor or agent whose data goes quiet early still forecasts
+      forward from its own last transaction.</div>
+  </div>
+
+  <h2 id="baseline-suggest">6. The "Suggest" Baseline Auto-Fill</h2>
+  <p><strong>Baseline funding level is not calculated automatically</strong> — it is a plain
+    input, representing the amount currently planned to be funded each day. The engine's whole
+    purpose is to indicate whether that number is enough. For a data-driven starting point
+    instead of an estimate, the <strong>Suggest</strong> button next to the field can be used:
+    selecting a method and a trailing window (in days) fills the field from the recent history on
+    record for whatever is currently selected.</p>
+  <table>
+    <thead><tr><th>Method</th><th>What it computes</th><th>Best suited for</th></tr></thead>
+    <tbody>
+      <sc-for list="{{baselineMethods}}" as="m" hint-placeholder-count="3">
+        <tr><td><strong>{{m.name}}</strong></td><td>{{m.what}}</td><td>{{m.bestFor}}</td></tr>
+      </sc-for>
+    </tbody>
+  </table>
+  <div class="diagram">
+    <svg viewBox="0 0 860 230" xmlns="http://www.w3.org/2000/svg">
+      <g font-family="system-ui, sans-serif">
+        <line x1="30" y1="190" x2="750" y2="190" stroke="#898781" stroke-width="1.5"/>
+        <rect x="40" y="150" width="46" height="40" fill="#c7d9ef"/>
+        <rect x="100" y="155" width="46" height="35" fill="#c7d9ef"/>
+        <rect x="160" y="140" width="46" height="50" fill="#c7d9ef"/>
+        <rect x="220" y="160" width="46" height="30" fill="#c7d9ef"/>
+        <rect x="280" y="145" width="46" height="45" fill="#c7d9ef"/>
+        <rect x="340" y="40" width="46" height="150" fill="#f4c9ab"/>
+        <rect x="400" y="155" width="46" height="35" fill="#c7d9ef"/>
+        <rect x="460" y="150" width="46" height="40" fill="#c7d9ef"/>
+        <rect x="520" y="160" width="46" height="30" fill="#c7d9ef"/>
+        <rect x="580" y="145" width="46" height="45" fill="#c7d9ef"/>
+        <text x="363" y="30" text-anchor="middle" font-size="10" fill="#a35a2e">one unusually large day</text>
+        <line x1="30" y1="108" x2="750" y2="108" stroke="#2a78d6" stroke-width="2" stroke-dasharray="6 4"/>
+        <text x="758" y="112" font-size="11" fill="#2a78d6">Average</text>
+        <line x1="30" y1="130" x2="750" y2="130" stroke="#eb6834" stroke-width="2" stroke-dasharray="6 4"/>
+        <text x="758" y="134" font-size="11" fill="#eb6834">Weighted avg</text>
+        <line x1="30" y1="153" x2="750" y2="153" stroke="#0ca30c" stroke-width="2" stroke-dasharray="6 4"/>
+        <text x="758" y="157" font-size="11" fill="#0ca30c">Median</text>
+      </g>
+    </svg>
+    <figcaption>A single unusually large day pulls Average up the most; Weighted average leans on
+      it less; Median mostly ignores it — one reason Median often suits a thin or spiky corridor
+      better than Average.</figcaption>
+  </div>
+  <p><strong>Window (days)</strong> defaults to 30 and is adjustable. If less history exists than
+    the window requested, the dashboard uses what is available and reports that plainly — it
+    never silently pads or fabricates data.</p>
+
+  <h2 id="advanced">7. Advanced Settings Reference</h2>
+  <p>Tucked under "Advanced settings," every field has a working default; this section serves as
+    a reference for fine-tuning once the basics are familiar.</p>
+  <table>
+    <thead><tr><th>Field</th><th>What it means</th><th>Range / options</th><th>Default</th></tr></thead>
+    <tbody>
+      <sc-for list="{{advancedParams}}" as="p" hint-placeholder-count="9">
+        <tr>
+          <td><strong>{{p.name}}</strong></td>
+          <td>{{p.meaning}}</td>
+          <td><span class="range-pill">{{p.range}}</span></td>
+          <td>{{p.default}}</td>
+        </tr>
+      </sc-for>
+    </tbody>
+  </table>
+
+  <h3>Choosing a Growth mode</h3>
+  <p>Only two options are offered — <code>Linear</code> and <code>Flat</code> — and the choice is
+    simple:</p>
+  <div class="diagram">
+    <svg viewBox="0 0 720 190" xmlns="http://www.w3.org/2000/svg">
+      <g font-family="system-ui, sans-serif">
+        <rect x="180" y="0" width="360" height="70" rx="10" fill="#f9f9f7" stroke="#e1e0d9" stroke-width="1.5"/>
+        <text x="360" y="30" text-anchor="middle" font-size="12" fill="#0b0b0b">Is this corridor's volume clearly</text>
+        <text x="360" y="48" text-anchor="middle" font-size="12" fill="#0b0b0b">trending up or down recently?</text>
+        <line x1="300" y1="70" x2="140" y2="118" stroke="#898781" stroke-width="2" marker-end="url(#arrow)"/>
+        <text x="205" y="98" font-size="11" fill="#52514e">Yes, still trending</text>
+        <line x1="420" y1="70" x2="580" y2="118" stroke="#898781" stroke-width="2" marker-end="url(#arrow)"/>
+        <text x="440" y="98" font-size="11" fill="#52514e">No, stable / mature</text>
+        <rect x="10" y="122" width="260" height="58" rx="10" fill="#f9f9f7" stroke="#2a78d6" stroke-width="1.5"/>
+        <text x="140" y="148" text-anchor="middle" font-size="13" font-weight="700" fill="#2a78d6">Growth = Linear</text>
+        <text x="140" y="166" text-anchor="middle" font-size="11" fill="#52514e">trend can keep rising/falling</text>
+        <rect x="450" y="122" width="260" height="58" rx="10" fill="#f9f9f7" stroke="#eb6834" stroke-width="1.5"/>
+        <text x="580" y="148" text-anchor="middle" font-size="13" font-weight="700" fill="#eb6834">Growth = Flat</text>
+        <text x="580" y="166" text-anchor="middle" font-size="11" fill="#52514e">seasonality/holidays only</text>
+      </g>
+    </svg>
+  </div>
+  <div class="callout caution">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3l10 18H2L12 3z" stroke="#c98500" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4" stroke="#c98500" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17.3" r="1" fill="#c98500"/></svg>
+    <div>A third mode, <code>Logistic</code>, exists in the underlying model but is deliberately
+      left out of this dashboard — it requires a capacity ceiling this engine doesn't set, so it
+      would fail on every run. Linear or Flat are the two supported choices.</div>
+  </div>
+
+  <h3>How Interval Width Changes the Range</h3>
+  <p>Interval width controls how wide the Lower&ndash;Upper band is around the Forecast line —
+    narrower settles closer to the typical case, wider allows more room for an unusually busy
+    day:</p>
+  <div class="diagram">
+    <svg viewBox="0 0 860 200" xmlns="http://www.w3.org/2000/svg">
+      <g font-family="system-ui, sans-serif">
+        <rect x="20" y="70" width="240" height="30" fill="#2a78d6" opacity="0.15"/>
+        <line x1="20" y1="70" x2="260" y2="70" stroke="#2a78d6" stroke-width="1.2"/>
+        <line x1="20" y1="100" x2="260" y2="100" stroke="#2a78d6" stroke-width="1.2"/>
+        <line x1="20" y1="85" x2="260" y2="85" stroke="#52514e" stroke-width="2" stroke-dasharray="5 4"/>
+        <text x="140" y="165" text-anchor="middle" font-size="12" font-weight="700" fill="#0b0b0b">0.50</text>
+        <text x="140" y="182" text-anchor="middle" font-size="11" fill="#52514e">narrower range</text>
+
+        <rect x="310" y="45" width="240" height="80" fill="#2a78d6" opacity="0.15"/>
+        <line x1="310" y1="45" x2="550" y2="45" stroke="#2a78d6" stroke-width="1.2"/>
+        <line x1="310" y1="125" x2="550" y2="125" stroke="#2a78d6" stroke-width="1.2"/>
+        <line x1="310" y1="85" x2="550" y2="85" stroke="#52514e" stroke-width="2" stroke-dasharray="5 4"/>
+        <text x="430" y="165" text-anchor="middle" font-size="12" font-weight="700" fill="#0b0b0b">0.80 (default)</text>
+        <text x="430" y="182" text-anchor="middle" font-size="11" fill="#52514e">balanced range</text>
+
+        <rect x="600" y="25" width="240" height="120" fill="#2a78d6" opacity="0.15"/>
+        <line x1="600" y1="25" x2="840" y2="25" stroke="#2a78d6" stroke-width="1.2"/>
+        <line x1="600" y1="145" x2="840" y2="145" stroke="#2a78d6" stroke-width="1.2"/>
+        <line x1="600" y1="85" x2="840" y2="85" stroke="#52514e" stroke-width="2" stroke-dasharray="5 4"/>
+        <text x="720" y="165" text-anchor="middle" font-size="12" font-weight="700" fill="#0b0b0b">0.95</text>
+        <text x="720" y="182" text-anchor="middle" font-size="11" fill="#52514e">wider range</text>
+      </g>
+    </svg>
+    <figcaption>The dashed line is the Forecast (yhat); the shaded band is the Lower&ndash;Upper
+      range around it. A wider band pushes Safety stock (Upper plus any Safety buffer %) higher,
+      since Safety stock is derived from the top of this band.</figcaption>
+  </div>
+
+  <h2 id="advanced-depth">8. Advanced Settings, In Depth</h2>
+  <p>Every field below acts on exactly one thing: the single daily time series that
+    <strong>Dimension</strong> (Section 4) and the core filters produced — whichever
+    receiving country, corridor, or agent was selected. There is no hidden per-corridor
+    breakdown inside a Receiver Country forecast: choosing Receiver Country = Nepal combines
+    every sending corridor into Nepal into one daily total first, and every setting below —
+    seasonality, growth, salary week, holidays — is fit against <em>that combined total</em>,
+    not against each sending corridor separately. Every number on this page is real, pulled
+    directly from the live API for illustration, not invented.</p>
+
+  <h3>Which public holidays actually apply, by Dimension</h3>
+  <p>Holidays are the one place Dimension changes more than just "which rows get combined" —
+    it also decides which country's public holidays feed into the model at all, since that
+    depends on which country fields the request actually has values for:</p>
+  <div class="diagram">
+    <svg viewBox="0 0 900 190" xmlns="http://www.w3.org/2000/svg">
+      <g font-family="system-ui, sans-serif">
+        <rect x="0" y="0" width="280" height="180" rx="10" fill="#f9f9f7" stroke="#2a78d6" stroke-width="1.5"/>
+        <text x="140" y="28" text-anchor="middle" font-size="13" font-weight="700" fill="#2a78d6">RECEIVER COUNTRY</text>
+        <text x="140" y="52" text-anchor="middle" font-size="11" fill="#52514e">e.g. Nepal</text>
+        <line x1="30" y1="70" x2="250" y2="70" stroke="#e1e0d9" stroke-width="1"/>
+        <text x="140" y="94" text-anchor="middle" font-size="10" fill="#898781">Sending-country holidays: none</text>
+        <text x="140" y="110" text-anchor="middle" font-size="10" fill="#898781">(no sending country given)</text>
+        <text x="140" y="140" text-anchor="middle" font-size="12" font-weight="700" fill="#0b0b0b">Receiver holidays only</text>
+        <text x="140" y="158" text-anchor="middle" font-size="10" fill="#52514e">verified: NP resolved, sending = none</text>
+
+        <rect x="310" y="0" width="280" height="180" rx="10" fill="#f9f9f7" stroke="#e1e0d9" stroke-width="1.5"/>
+        <text x="450" y="28" text-anchor="middle" font-size="13" font-weight="700" fill="#52514e">CORRIDOR</text>
+        <text x="450" y="52" text-anchor="middle" font-size="11" fill="#52514e">e.g. UAE &rarr; Nepal</text>
+        <line x1="340" y1="70" x2="560" y2="70" stroke="#e1e0d9" stroke-width="1"/>
+        <text x="450" y="94" text-anchor="middle" font-size="10" fill="#898781">Sending-country holidays: yes</text>
+        <text x="450" y="110" text-anchor="middle" font-size="10" fill="#898781">Receiving-country holidays: yes</text>
+        <text x="450" y="140" text-anchor="middle" font-size="12" font-weight="700" fill="#0b0b0b">Both apply</text>
+        <text x="450" y="158" text-anchor="middle" font-size="10" fill="#52514e">verified: AE and NP both resolved</text>
+
+        <rect x="620" y="0" width="280" height="180" rx="10" fill="#f9f9f7" stroke="#eb6834" stroke-width="1.5"/>
+        <text x="760" y="28" text-anchor="middle" font-size="13" font-weight="700" fill="#eb6834">AGENT</text>
+        <text x="760" y="52" text-anchor="middle" font-size="11" fill="#52514e">e.g. one payout agent</text>
+        <line x1="650" y1="70" x2="870" y2="70" stroke="#e1e0d9" stroke-width="1"/>
+        <text x="760" y="94" text-anchor="middle" font-size="10" fill="#898781">No country specified at all</text>
+        <text x="760" y="140" text-anchor="middle" font-size="12" font-weight="700" fill="#0b0b0b">Neither applies</text>
+        <text x="760" y="158" text-anchor="middle" font-size="10" fill="#52514e">verified: both sides resolved to none</text>
+      </g>
+    </svg>
+    <figcaption>Verified directly against the live API for a real corridor: Receiver Country
+      resolves only the receiving country's holidays, Corridor resolves both, and Agent
+      resolves neither, since an agent forecast specifies no country at all.</figcaption>
+  </div>
+  <div class="callout tip">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#2a78d6" stroke-width="2"/><path d="M12 8v5" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16" r="1.1" fill="#2a78d6"/></svg>
+    <div>Salary week and both flavors of seasonality below are <strong>not</strong>
+      country-dependent — they're fit purely from the selected series' own daily volume
+      pattern, so they apply identically under all three dimensions. Only public holidays
+      follow the table above.</div>
+  </div>
+
+  <h3>Safety buffer %</h3>
+  <p><code>safety_stock = yhat_upper &times; (1 + safety_buffer_pct)</code> — a plain
+    multiplier on top of the model's own upper estimate for that day. Worked example, using
+    a real day's <code>yhat_upper</code> of <strong>$337,016</strong>:</p>
+  <table>
+    <thead><tr><th>Safety buffer %</th><th>Calculation</th><th>Resulting safety stock</th></tr></thead>
+    <tbody>
+      <tr><td>0%</td><td>$337,016 &times; 1.00</td><td>$337,016</td></tr>
+      <tr><td>10%</td><td>$337,016 &times; 1.10</td><td>$370,717</td></tr>
+      <tr><td>25%</td><td>$337,016 &times; 1.25</td><td>$421,269</td></tr>
+    </tbody>
+  </table>
+  <p>Applies identically regardless of Dimension — it's a pure multiplier on whatever
+    <code>yhat_upper</code> the selected series produced that day, nothing more.</p>
+
+  <h3>Interval width</h3>
+  <p>A real comparison, same corridor and same day — the forecast itself
+    (<code>yhat</code> = $216,405) doesn't move; only the band around it does:</p>
+  <table>
+    <thead><tr><th>Interval width</th><th>Lower</th><th>Upper</th><th>Band width</th></tr></thead>
+    <tbody>
+      <tr><td>0.50</td><td>$159,116</td><td>$283,752</td><td>$124,636</td></tr>
+      <tr><td>0.95</td><td>$41,830</td><td>$377,345</td><td>$335,515</td></tr>
+    </tbody>
+  </table>
+  <p>0.80 (the default) sits between these two. Since Safety stock is derived from Upper, a
+    wider interval width doesn't just widen the shaded band on the chart — it directly raises
+    the funding recommendation: Upper goes from $283,752 at 0.50 to $377,345 at 0.95, a
+    difference of over $93,000 on this one day alone, with Safety buffer % at 0 in both cases.</p>
+
+  <h3>Growth</h3>
+  <p>A real comparison for the same corridor and horizon:</p>
+  <table>
+    <thead><tr><th>Growth</th><th>Avg daily requirement (this horizon)</th><th>What the "trend" component looked like</th></tr></thead>
+    <tbody>
+      <tr><td>Linear</td><td>$180,008</td><td>Declining — about $294,409 early in the corridor's history, down to about $187,914 by the forecast horizon</td></tr>
+      <tr><td>Flat</td><td>$205,597</td><td>Held constant at about $213,791 the entire time — no trend line at all</td></tr>
+    </tbody>
+  </table>
+  <p>This corridor's real history has an ongoing decline. Linear correctly follows that
+    decline into the forecast, landing on the lower, more realistic $180,008 average. Flat
+    ignores it and holds close to the historical average level instead, overstating the
+    near-term requirement by roughly $25,600/day here — exactly the kind of gap the decision
+    tree in Section 7 is trying to prevent.</p>
+
+  <h3>Seasonality — Weekly</h3>
+  <p>Real weekly-pattern values for this receiving country (the amount added to or
+    subtracted from that day's baseline level, before any other effect is applied):</p>
+  <table>
+    <thead><tr><th>Day</th><th>Weekly effect</th></tr></thead>
+    <tbody>
+      <tr><td>Sunday</td><td>+$59,288</td></tr>
+      <tr><td>Monday</td><td>&minus;$13,065</td></tr>
+      <tr><td>Tuesday</td><td>&minus;$6,422</td></tr>
+      <tr><td>Wednesday</td><td>&minus;$5,514</td></tr>
+      <tr><td>Thursday</td><td>+$1,450</td></tr>
+      <tr><td>Friday</td><td>&minus;$3,507</td></tr>
+      <tr><td>Saturday</td><td>&minus;$32,229</td></tr>
+    </tbody>
+  </table>
+  <p>Sunday is this receiving country's strongest day by a wide margin, Saturday its weakest
+    — visible directly in the Trend Decomposition chart's "weekly" panel for whatever is
+    currently selected. Because this is fit from the combined daily total described above,
+    it describes the receiving country <em>as a whole</em>; one specific corridor into it
+    could have a noticeably different weekly rhythm of its own if forecast separately.</p>
+
+  <h3>Seasonality — Yearly</h3>
+  <p>The same idea, over a full year instead of a week — captures festival seasons,
+    year-end patterns, and other recurring annual effects the data has enough signal to
+    detect. Visible as the "yearly" panel in the Trend Decomposition chart for whatever is
+    currently selected.</p>
+  <div class="callout caution">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3l10 18H2L12 3z" stroke="#c98500" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4" stroke="#c98500" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17.3" r="1" fill="#c98500"/></svg>
+    <div>With only about 2.5 years of history behind this data, treat any single sharp
+      yearly peak or trough as a useful signal, not a certainty — there simply aren't many
+      repeats of "the same month" yet to confirm it's a real recurring pattern rather than
+      one unusual year.</div>
+  </div>
+
+  <h3>Seasonality — Daily</h3>
+  <p>Off by default, and there is no worked example to show for it: volume is already
+    totalled per calendar day before Prophet ever sees the data (Section 5's pipeline
+    diagram), so there is no within-a-day pattern left for this setting to find. Turning it
+    on doesn't break anything — it just gives the model an extra parameter with nothing real
+    to fit. Best left off.</p>
+
+  <h3>Salary week</h3>
+  <p>A real, verified comparison — the default window is 3 days before through 3 days after
+    each month boundary. July ends on the 31st, so its window covers July 29 – August 3:</p>
+  <table>
+    <thead><tr><th>Date</th><th>Position</th><th>Forecast, salary week ON</th><th>Forecast, salary week OFF</th><th>Effect</th></tr></thead>
+    <tbody>
+      <tr><td>Aug 1 (Sat)</td><td>1 day after month-end</td><td>$216,405</td><td>$136,361</td><td>+$80,044</td></tr>
+      <tr><td>Aug 2 (Sun)</td><td>2 days after</td><td>$247,195</td><td>$230,015</td><td>+$17,180</td></tr>
+      <tr><td>Aug 3 (Mon)</td><td>3 days after — last day of the window</td><td>$162,856</td><td>$158,503</td><td>+$4,354</td></tr>
+      <tr><td>Aug 4 (Tue)</td><td>outside the window</td><td>$163,719</td><td>$165,792</td><td>~none</td></tr>
+    </tbody>
+  </table>
+  <p>The effect is largest right at the month boundary and tapers off exactly across the
+    configured window, then disappears once outside it — real, verified behavior, not a
+    rough approximation. It's the same synthetic event regardless of Dimension; nothing
+    country-specific about it, unlike public holidays above.</p>
+
+  <h3>Trend decomposition chart</h3>
+  <p>The simplest setting on this page: purely on/off for whether the second chart renders
+    server-side at all (the API's <code>trend_decomposition</code> field comes back empty
+    when off). It has no effect on the forecast itself, the Funding Gap chart, or the data
+    table — only on whether that one extra chart is worth the render time.</p>
+
+  <h3>Statuses counted</h3>
+  <p>A real comparison, same corridor: <code>Payment</code> only (the default) versus adding
+    the two "in-flight" statuses (<code>PAYOUTPROCESSING</code>, <code>INITIALIZED</code>):</p>
+  <table>
+    <thead><tr><th>Statuses counted</th><th>Avg daily requirement</th></tr></thead>
+    <tbody>
+      <tr><td>Payment only</td><td>$180,008.04</td></tr>
+      <tr><td>Payment + in-flight</td><td>$180,220.12</td></tr>
+    </tbody>
+  </table>
+  <p>Only about $212/day of difference here (roughly 0.1%) — a sign that almost all of this
+    receiving country's transactions resolve cleanly to <code>Payment</code> rather than
+    sitting in-flight. That won't hold for every corridor or agent; a thinner or more
+    compliance-flagged one could show a much bigger gap, so this is worth spot-checking
+    rather than assuming one corridor's pattern holds everywhere. See Section 7's reference
+    table for where this field lives in the form.</p>
+
+  <h2 id="concept">9. How Safety Stock, Baseline, and Shortfall Relate</h2>
+  <p>This is the single most important relationship on the whole dashboard. One picture:</p>
+  <div class="diagram">
+    <svg viewBox="0 0 860 260" xmlns="http://www.w3.org/2000/svg">
+      <g font-family="system-ui, sans-serif">
+        <line x1="50" y1="20" x2="50" y2="220" stroke="#898781" stroke-width="1.5"/>
+        <line x1="50" y1="220" x2="830" y2="220" stroke="#898781" stroke-width="1.5"/>
+        <text x="18" y="24" font-size="11" fill="#898781">USD</text>
+        <text x="830" y="238" font-size="11" fill="#898781" text-anchor="end">Time &rarr;</text>
+        <!-- safety stock wavy line (upper) -->
+        <path d="M50,110 C130,70 210,150 290,90 C370,50 450,120 530,80 C610,55 690,110 770,70 L830,85"
+          fill="none" stroke="#eb6834" stroke-width="2.5" stroke-dasharray="7 5"/>
+        <!-- baseline flat dashed line -->
+        <line x1="50" y1="150" x2="830" y2="150" stroke="#52514e" stroke-width="1.5" stroke-dasharray="2 4"/>
+        <!-- shortfall shading where safety stock above baseline -->
+        <path d="M50,110 C130,70 210,150 290,90 C370,50 450,120 530,80 C610,55 690,110 770,70 L830,85
+                 L830,150 L50,150 Z" fill="#eb6834" opacity="0.12"/>
+        <text x="770" y="60" font-size="12" font-weight="700" fill="#eb6834" text-anchor="end">Safety stock</text>
+        <text x="770" y="145" font-size="12" font-weight="700" fill="#52514e" text-anchor="end">Baseline (planned funding)</text>
+        <text x="270" y="128" font-size="11" fill="#eb6834">&uarr; Shortfall region</text>
+        <circle cx="207" cy="150" r="5" fill="#0ca30c"/>
+        <text x="207" y="172" font-size="10" fill="#0ca30c" text-anchor="middle">Covered here</text>
+        <circle cx="290" cy="90" r="5" fill="#d03b3b"/>
+        <text x="290" y="80" font-size="10" fill="#d03b3b" text-anchor="middle">Shortfall day</text>
+      </g>
+    </svg>
+    <figcaption>Whenever the orange "Safety stock" line sits above the gray "Baseline" line, that
+      day has a funding shortfall — the vertical gap between them is that day's shortfall amount.</figcaption>
+  </div>
+  <ul class="plain">
+    <li><strong>Safety stock</strong> is calculated by the model — the risk-adjusted amount
+      recommended for that day.</li>
+    <li><strong>Baseline</strong> is the amount the dashboard has been told will actually be
+      funded.</li>
+    <li><strong>Daily shortfall</strong> = however much Safety stock exceeds Baseline that day
+      (zero if Baseline already covers it).</li>
+    <li>Raising the Baseline field (or lowering Safety buffer %) causes shortfall days to
+      disappear — this is the dashboard's core "what if funding were increased" experiment.</li>
+  </ul>
+
+  <h2 id="results">10. Reading the Results</h2>
+  <p>After a forecast runs, six headline numbers appear first:</p>
+  <table>
+    <thead><tr><th>Tile</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <sc-for list="{{outputTiles}}" as="t" hint-placeholder-count="6">
+        <tr><td><strong>{{t.name}}</strong></td><td>{{t.meaning}}</td></tr>
+      </sc-for>
+    </tbody>
+  </table>
+  <div class="diagram">
+    <svg viewBox="0 0 860 230" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrow2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#2a78d6"/>
+        </marker>
+      </defs>
+      <g font-family="system-ui, sans-serif">
+        <rect x="20" y="20" width="110" height="70" rx="8" fill="#f9f9f7" stroke="#e1e0d9" stroke-width="1.5"/>
+        <rect x="140" y="20" width="110" height="70" rx="8" fill="#f9f9f7" stroke="#e1e0d9" stroke-width="1.5"/>
+        <rect x="260" y="20" width="110" height="70" rx="8" fill="#f9f9f7" stroke="#2a78d6" stroke-width="2"/>
+        <rect x="20" y="100" width="110" height="70" rx="8" fill="#f9f9f7" stroke="#e1e0d9" stroke-width="1.5"/>
+        <rect x="140" y="100" width="110" height="70" rx="8" fill="#f9f9f7" stroke="#e1e0d9" stroke-width="1.5"/>
+        <rect x="260" y="100" width="110" height="70" rx="8" fill="#f9f9f7" stroke="#e1e0d9" stroke-width="1.5"/>
+        <text x="315" y="12" text-anchor="middle" font-size="10" fill="#2a78d6">one of six tiles</text>
+
+        <line x1="370" y1="55" x2="425" y2="55" stroke="#2a78d6" stroke-width="2" marker-end="url(#arrow2)"/>
+
+        <rect x="435" y="20" width="405" height="180" rx="10" fill="#fcfcfb" stroke="#2a78d6" stroke-width="2"/>
+        <text x="457" y="52" font-size="13" fill="#52514e">Safety stock ratio</text>
+        <circle cx="608" cy="47" r="8" fill="none" stroke="#2a78d6" stroke-width="1.5"/>
+        <text x="608" y="51" text-anchor="middle" font-size="10" fill="#2a78d6">i</text>
+        <text x="655" y="51" font-size="10" fill="#898781">&larr; label + info icon</text>
+        <text x="457" y="112" font-size="34" font-weight="700" fill="#0b0b0b">1.6x</text>
+        <text x="655" y="112" font-size="10" fill="#898781">&larr; headline value</text>
+        <text x="457" y="152" font-size="12" fill="#898781">above 2x may signal a spiky corridor</text>
+        <text x="655" y="152" font-size="10" fill="#898781">&larr; context sub-line</text>
+      </g>
+    </svg>
+    <figcaption>Every tile follows the same anatomy: a label with an info icon, one large
+      headline value, and a smaller line of context underneath.</figcaption>
+  </div>
+  <div class="callout tip">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#2a78d6" stroke-width="2"/><path d="M12 8v5" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16" r="1.1" fill="#2a78d6"/></svg>
+    <div>"Days with shortfall" shows as a small status badge:
+      <span class="badge crit" style="margin:0 6px;"><span class="dot"></span>Shortfall on N of M days</span>
+      or <span class="badge good" style="margin:0 6px;"><span class="dot"></span>Fully covered</span>
+      — color plus text together, never color alone.</div>
+  </div>
+
+  <h2 id="charts">11. Reading the Charts</h2>
+  <h3>Funding Gap Analysis</h3>
+  <p>An interactive chart plotting Forecast, the uncertainty range, Safety stock, Baseline, and
+    any shortfall days, all against the calendar. Dragging over a date range zooms into it,
+    double-clicking resets the view, and hovering anywhere reveals every value for that day at
+    once. Every number in it is also in the data table below, so nothing is chart-only.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 860 270" xmlns="http://www.w3.org/2000/svg">
+      <g font-family="system-ui, sans-serif">
+        <line x1="50" y1="20" x2="50" y2="230" stroke="#898781" stroke-width="1.5"/>
+        <line x1="50" y1="230" x2="830" y2="230" stroke="#898781" stroke-width="1.5"/>
+        <text x="18" y="24" font-size="11" fill="#898781">USD</text>
+        <text x="830" y="248" font-size="11" fill="#898781" text-anchor="end">Time &rarr;</text>
+
+        <path d="M50,150 C130,120 210,170 290,130 C370,100 450,150 530,120 C610,105 690,140 770,110 L830,120
+                 L830,190 C770,220 690,190 610,205 C530,220 450,190 370,210 C290,230 210,210 130,220 L50,210 Z"
+          fill="#2a78d6" opacity="0.12"/>
+        <path d="M50,180 C130,170 210,190 290,175 C370,155 450,170 530,160 C610,155 690,165 770,155 L830,155"
+          fill="none" stroke="#2a78d6" stroke-width="2.5"/>
+        <path d="M50,110 C130,70 210,150 290,90 C370,50 450,120 530,80 C610,55 690,110 770,70 L830,85"
+          fill="none" stroke="#eb6834" stroke-width="2.5" stroke-dasharray="7 5"/>
+        <line x1="50" y1="150" x2="830" y2="150" stroke="#52514e" stroke-width="1.5" stroke-dasharray="2 4"/>
+
+        <text x="770" y="60" font-size="11" font-weight="700" fill="#eb6834" text-anchor="end">Safety stock</text>
+        <text x="770" y="205" font-size="11" font-weight="700" fill="#2a78d6" text-anchor="end">Forecast (yhat)</text>
+        <text x="600" y="145" font-size="10" fill="#52514e" text-anchor="middle">Baseline</text>
+        <text x="240" y="243" font-size="10" fill="#2a78d6" text-anchor="middle">Lower&ndash;Upper range</text>
+
+        <line x1="450" y1="120" x2="450" y2="80" stroke="#898781" stroke-width="1" stroke-dasharray="3 3"/>
+        <circle cx="450" cy="120" r="4" fill="#0b0b0b"/>
+        <rect x="360" y="8" width="220" height="66" rx="6" fill="#fcfcfb" stroke="#898781" stroke-width="1"/>
+        <text x="372" y="24" font-size="10" font-weight="700" fill="#0b0b0b">Hovering shows exact values</text>
+        <text x="372" y="40" font-size="9" fill="#52514e">Forecast &middot; Lower &middot; Upper</text>
+        <text x="372" y="54" font-size="9" fill="#52514e">Safety stock &middot; Baseline</text>
+        <text x="372" y="68" font-size="9" fill="#52514e">for that exact day</text>
+      </g>
+    </svg>
+    <figcaption>The shaded band is the model's Lower&ndash;Upper range around the Forecast line;
+      Safety stock sits above it; Baseline is compared against Safety stock to find shortfall
+      days. Hovering any point on the live chart shows every one of these values for that
+      exact day.</figcaption>
+  </div>
+  <h3>Trend Decomposition</h3>
+  <p>Shows what Prophet found in the corridor's history: the underlying long-term trend, the
+    weekly pattern (which days run high or low), the yearly/seasonal pattern, and the effect of
+    holidays and salary week. Also zoomable — useful for confirming the model has picked up a
+    pattern consistent with the underlying business (e.g. a genuine weekday dip on Mondays).</p>
+
+  <h2 id="data-table">12. The Data Table</h2>
+  <p>A collapsible, day-by-day breakdown underneath the charts — the full, exact numbers behind
+    every chart and every headline tile.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 860 170" xmlns="http://www.w3.org/2000/svg">
+      <g font-family="system-ui, sans-serif">
+        <rect x="20" y="10" width="360" height="140" rx="10" fill="#f9f9f7" stroke="#e1e0d9" stroke-width="1.5"/>
+        <text x="200" y="32" text-anchor="middle" font-size="12" font-weight="700" fill="#52514e">CHART</text>
+        <path d="M50,120 C100,100 150,130 200,90 C250,70 300,110 350,80" fill="none" stroke="#2a78d6" stroke-width="2.5"/>
+        <circle cx="200" cy="90" r="6" fill="none" stroke="#d03b3b" stroke-width="2"/>
+
+        <line x1="400" y1="80" x2="460" y2="80" stroke="#898781" stroke-width="2" marker-end="url(#arrow)"/>
+        <text x="430" y="65" text-anchor="middle" font-size="10" fill="#898781">same day</text>
+
+        <rect x="480" y="10" width="360" height="140" rx="10" fill="#f9f9f7" stroke="#e1e0d9" stroke-width="1.5"/>
+        <text x="660" y="32" text-anchor="middle" font-size="12" font-weight="700" fill="#52514e">DATA TABLE</text>
+        <line x1="500" y1="45" x2="820" y2="45" stroke="#e1e0d9" stroke-width="1"/>
+        <rect x="500" y="65" width="320" height="20" fill="#fbe1e1"/>
+        <line x1="500" y1="65" x2="820" y2="65" stroke="#e1e0d9" stroke-width="1"/>
+        <line x1="500" y1="85" x2="820" y2="85" stroke="#e1e0d9" stroke-width="1"/>
+        <line x1="500" y1="105" x2="820" y2="105" stroke="#e1e0d9" stroke-width="1"/>
+        <line x1="500" y1="125" x2="820" y2="125" stroke="#e1e0d9" stroke-width="1"/>
+        <text x="510" y="79" font-size="10" fill="#a63244" font-weight="700">exact row for the circled point</text>
+      </g>
+    </svg>
+    <figcaption>Every point plotted on the Funding Gap chart corresponds to exactly one row in
+      the table below it — the chart for a quick read, the table for the exact figures.</figcaption>
+  </div>
+  <table>
+    <thead><tr><th>Column</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <sc-for list="{{tableColumns}}" as="c" hint-placeholder-count="8">
+        <tr><td><strong>{{c.name}}</strong></td><td>{{c.meaning}}</td></tr>
+      </sc-for>
+    </tbody>
+  </table>
+
+  <h2 id="evaluate">13. Evaluating Forecast Accuracy (Backtest)</h2>
+  <p>Every result described so far assumes the forecast can be trusted. The <strong>Evaluate
+    forecast accuracy</strong> panel — its own collapsible section, below the main results —
+    tests that assumption directly instead of assuming it: it hides a recent stretch of real
+    history, re-trains the model without that stretch, forecasts exactly that hidden period, and
+    compares the forecast against what actually happened. This is called a
+    <strong>backtest</strong>, and it works independently of the main form — it can be run
+    before or after "Run forecast," using whichever Dimension, filters, and Advanced Settings
+    are currently selected above.</p>
+  <div class="callout tip">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#2a78d6" stroke-width="2"/><path d="M12 8v5" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16" r="1.1" fill="#2a78d6"/></svg>
+    <div>This is a second model fit, separate from the main forecast — it takes a few extra
+      seconds to run and does not happen automatically. Click <strong>Run backtest</strong> to
+      trigger it whenever the current selection is worth double-checking.</div>
+  </div>
+
+  <h3>Days to hold out</h3>
+  <p>The one input this panel adds beyond what's already selected above:</p>
+  <table>
+    <thead><tr><th>Field</th><th>What it means</th><th>Range</th><th>Default</th></tr></thead>
+    <tbody>
+      <sc-for list="{{evalInputs}}" as="p" hint-placeholder-count="1">
+        <tr>
+          <td><strong>{{p.name}}</strong></td>
+          <td>{{p.meaning}}</td>
+          <td><span class="range-pill">{{p.range}}</span></td>
+          <td>{{p.default}}</td>
+        </tr>
+      </sc-for>
+    </tbody>
+  </table>
+  <div class="callout caution">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3l10 18H2L12 3z" stroke="#c98500" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4" stroke="#c98500" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17.3" r="1" fill="#c98500"/></svg>
+    <div>Matching this to <strong>Horizon</strong> (Section 5) gives the most directly relevant
+      answer — "how accurate has this model been over a period the same length as what I'm
+      about to forecast?" A corridor with very little history may not support a large value
+      here; the panel reports a clear error rather than guessing if there isn't enough history
+      to both train on and hold out.</div>
+  </div>
+
+  <p>What happens once <strong>Run backtest</strong> is clicked:</p>
+  <div class="diagram">
+    <svg viewBox="0 0 860 480" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrowEval" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#898781"/>
+        </marker>
+      </defs>
+      <g font-family="system-ui, sans-serif">
+        <rect x="20" y="20" width="560" height="50" rx="10" fill="#f9f9f7" stroke="#2a78d6" stroke-width="1.5"/>
+        <text x="300" y="50" text-anchor="middle" font-size="12" fill="#0b0b0b">Used to re-fit the model</text>
+        <rect x="590" y="20" width="250" height="50" rx="10" fill="#fdf1e8" stroke="#eb6834" stroke-width="1.5"/>
+        <text x="715" y="45" text-anchor="middle" font-size="12" font-weight="700" fill="#eb6834">Held out</text>
+        <text x="715" y="61" text-anchor="middle" font-size="10" fill="#a35a2e">(Days to hold out)</text>
+
+        <line x1="300" y1="70" x2="300" y2="110" stroke="#898781" stroke-width="2" marker-end="url(#arrowEval)"/>
+        <rect x="140" y="112" width="320" height="50" rx="10" fill="#f9f9f7" stroke="#2a78d6" stroke-width="1.5"/>
+        <text x="300" y="132" text-anchor="middle" font-size="11" fill="#0b0b0b">Prophet re-fits &mdash; never sees</text>
+        <text x="300" y="148" text-anchor="middle" font-size="11" fill="#0b0b0b">the held-out days</text>
+
+        <line x1="300" y1="162" x2="300" y2="200" stroke="#898781" stroke-width="2" marker-end="url(#arrowEval)"/>
+        <rect x="140" y="202" width="320" height="50" rx="10" fill="#fdf1e8" stroke="#eb6834" stroke-width="1.5"/>
+        <text x="300" y="222" text-anchor="middle" font-size="11" fill="#7a3414">Forecasts just those</text>
+        <text x="300" y="238" text-anchor="middle" font-size="11" fill="#7a3414">held-out days</text>
+
+        <line x1="300" y1="252" x2="392" y2="320" stroke="#2a78d6" stroke-width="1.5" marker-end="url(#arrowEval)"/>
+        <line x1="715" y1="70" x2="598" y2="320" stroke="#eb6834" stroke-width="1.5" marker-end="url(#arrowEval)"/>
+        <rect x="298" y="278" width="110" height="16" fill="#f9f9f7"/>
+        <text x="353" y="291" text-anchor="middle" font-size="9.5" fill="#2a78d6">the model's guess</text>
+        <rect x="565" y="222" width="130" height="16" fill="#f9f9f7"/>
+        <text x="630" y="235" text-anchor="middle" font-size="9.5" fill="#eb6834">what really happened</text>
+
+        <rect x="370" y="322" width="250" height="56" rx="10" fill="#fcfcfb" stroke="#898781" stroke-width="1.5"/>
+        <text x="495" y="346" text-anchor="middle" font-size="12" fill="#0b0b0b">Compared,</text>
+        <text x="495" y="363" text-anchor="middle" font-size="12" fill="#0b0b0b">day by day</text>
+
+        <line x1="495" y1="378" x2="495" y2="412" stroke="#898781" stroke-width="2" marker-end="url(#arrowEval)"/>
+        <rect x="120" y="414" width="620" height="56" rx="10" fill="#f9f9f7" stroke="#e1e0d9" stroke-width="1.5"/>
+        <text x="430" y="438" text-anchor="middle" font-size="12" font-weight="700" fill="#0b0b0b">MAPE &middot; RMSE &middot; Interval coverage &middot; Safety-stock coverage</text>
+        <text x="430" y="456" text-anchor="middle" font-size="10.5" fill="#52514e">+ compared against a simple, naive baseline</text>
+      </g>
+    </svg>
+    <figcaption>Days to hold out picks how large the orange segment is; everything else in this
+      diagram happens automatically once "Run backtest" is clicked.</figcaption>
+  </div>
+
+  <h3>The five results</h3>
+  <table>
+    <thead><tr><th>Result</th><th>Answers</th></tr></thead>
+    <tbody>
+      <sc-for list="{{evalResults}}" as="r" hint-placeholder-count="5">
+        <tr><td><strong>{{r.name}}</strong></td><td>{{r.answers}}</td></tr>
+      </sc-for>
+    </tbody>
+  </table>
+
+  <h3>Reading the backtest chart</h3>
+  <p>Below the five results, a chart plots the held-out window itself — what the model predicted
+    against what really happened, day by day:</p>
+  <div class="diagram">
+    <svg viewBox="0 0 860 270" xmlns="http://www.w3.org/2000/svg">
+      <g font-family="system-ui, sans-serif">
+        <line x1="50" y1="20" x2="50" y2="230" stroke="#898781" stroke-width="1.5"/>
+        <line x1="50" y1="230" x2="830" y2="230" stroke="#898781" stroke-width="1.5"/>
+        <text x="18" y="24" font-size="11" fill="#898781">USD</text>
+        <text x="830" y="248" font-size="11" fill="#898781" text-anchor="end">Held-out days &rarr;</text>
+
+        <path d="M50,150 C130,120 210,170 290,130 C370,100 450,150 530,120 C610,105 690,140 770,110 L830,120
+                 L830,190 C770,220 690,190 610,205 C530,220 450,190 370,210 C290,230 210,210 130,220 L50,210 Z"
+          fill="#2a78d6" opacity="0.12"/>
+        <path d="M50,120 C130,90 210,145 290,100 C370,65 450,120 530,85 C610,60 690,110 770,75 L830,90"
+          fill="none" stroke="#2a78d6" stroke-width="2.5"/>
+        <line x1="50" y1="150" x2="830" y2="150" stroke="#898781" stroke-width="1.5" stroke-dasharray="2 4"/>
+        <path d="M50,110 C130,140 210,100 290,150 C370,120 450,90 530,140 C610,100 690,130 770,95 L830,115"
+          fill="none" stroke="#0b0b0b" stroke-width="2.5"/>
+
+        <circle cx="290" cy="150" r="6" fill="none" stroke="#d03b3b" stroke-width="2.5"/>
+        <circle cx="610" cy="100" r="6" fill="none" stroke="#d03b3b" stroke-width="2.5"/>
+
+        <text x="770" y="65" font-size="11" font-weight="700" fill="#2a78d6" text-anchor="end">Forecast</text>
+        <text x="770" y="220" font-size="10" fill="#52514e" text-anchor="end">Naive baseline</text>
+        <rect x="410" y="66" width="80" height="16" fill="#fcfcfb"/>
+        <text x="450" y="78" font-size="10" font-weight="700" fill="#0b0b0b" text-anchor="middle">Actual</text>
+        <rect x="245" y="162" width="90" height="14" fill="#fcfcfb"/>
+        <text x="290" y="172" font-size="9.5" fill="#d03b3b" text-anchor="middle">outside the range</text>
+      </g>
+    </svg>
+    <figcaption>The shaded band is the model's Lower&ndash;Upper range; the solid dark line is
+      what actually happened. A red circle marks a day Actual fell outside that range — exactly
+      the days working against Interval coverage above. The flat dotted line is the naive
+      baseline used for the comparison.</figcaption>
+  </div>
+  <p>Hovering any point on the live chart shows the exact Forecast, range, Actual, and Naive
+    baseline value for that day — same convention as the Funding Gap chart (Section 11).</p>
+
+  <h3>A real, verified example</h3>
+  <p>Receiver Country = Nepal, Days to hold out = 14, run directly against the live dataset:</p>
+  <table>
+    <thead><tr><th>Result</th><th>Value</th></tr></thead>
+    <tbody>
+      <tr><td>Trained on</td><td>929 days &middot; tested on 2026-07-18 to 2026-07-31</td></tr>
+      <tr><td>MAPE</td><td>279.0% (naive baseline: 274.9%)</td></tr>
+      <tr><td>RMSE</td><td>$132,361 (naive baseline: $120,139)</td></tr>
+      <tr><td>Interval coverage</td><td>35.7% (target 80%)</td></tr>
+      <tr><td>Safety stock coverage</td><td>100.0%</td></tr>
+    </tbody>
+  </table>
+  <p>A real, useful finding rather than a demonstration of failure: Interval coverage falling
+    well short of its 80% target means this corridor's raw uncertainty band is too narrow to
+    trust as stated — but Safety stock coverage sitting at 100% shows the funding recommendation
+    itself (Upper plus whatever Safety buffer % is configured) was still enough on every one of
+    these 14 days. And Prophet trailing the naive baseline on both MAPE and RMSE here is exactly
+    the kind of honest signal this panel exists to surface — see the next scenario in Section 14
+    for what to do when that happens.</p>
+
+  <div class="callout caution">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3l10 18H2L12 3z" stroke="#c98500" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4" stroke="#c98500" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17.3" r="1" fill="#c98500"/></svg>
+    <div><strong>One held-out window is a sample, not a guarantee</strong> — most of all on a
+      thin or spiky corridor with little history (the same idea as the Safety stock ratio
+      caveat in Section 14). A single window can look better or worse than the model's true
+      accuracy by chance. Treat a low coverage number as a signal worth a second look, not a
+      final verdict on the model.</div>
+  </div>
+
+  <h2 id="scenarios">14. Common Scenarios &amp; What To Do</h2>
+  <h3>"Safety stock ratio" looks very high (well above 2x)</h3>
+  <p>This usually means the corridor is <strong>thin or spiky</strong> — many quiet days
+    punctuated by the occasional large transaction — not a modeling error. The
+    <strong>Median</strong> baseline-suggestion method is often a better fit than Average in this
+    situation, since it resists being pulled up by rare large days.</p>
+  <h3>"No transactions match the given filters"</h3>
+  <p>The combination selected has no data at all under the statuses currently counted — most
+    often a corridor pair that does not exist in the dataset, or a status filter (see Advanced
+    Settings) too narrow for a thin agent. Confirming the corridor/agent selected in the
+    dropdowns — which only ever list real values from the data — resolves most such cases.</p>
+  <h3>The forecast horizon doesn't start "today"</h3>
+  <p>Expected — see the callout in Section 5. It starts the day after the selected filter's own
+    most recent transaction.</p>
+  <h3>Adjusting the safety margin beyond the model's own recommendation</h3>
+  <p><strong>Safety buffer %</strong> in Advanced Settings stacks an extra percentage on top of
+    the model's own risk-adjusted number, without changing the forecast itself.</p>
+  <h3>The backtest shows low coverage, or Prophet losing to the naive baseline</h3>
+  <p>Neither means the dashboard is broken. Low <strong>Interval coverage</strong> means the raw
+    uncertainty band is narrower than it should be for this selection — <strong>Safety stock
+    coverage</strong> is usually the more reassuring number to check next, since Safety buffer %
+    (Advanced Settings) widens the actual funding recommendation beyond the raw range. Losing to
+    the naive baseline on a thin or spiky corridor is common and worth knowing, not alarming — it
+    means a simple trailing average happened to do as well or better over that particular
+    held-out window. Trying a different <strong>Days to hold out</strong> value, or checking
+    whether the corridor has enough history (Section 8's yearly-seasonality caution applies here
+    too), are the first things worth trying before assuming something is wrong.</p>
+
+  <h2 id="glossary">15. Glossary</h2>
+  <table>
+    <tbody>
+      <sc-for list="{{glossary}}" as="g" hint-placeholder-count="10">
+        <tr><td style="width:220px;"><strong>{{g.term}}</strong></td><td>{{g.def}}</td></tr>
+      </sc-for>
+    </tbody>
+  </table>
+
+  <h2 id="quickref">16. Quick Reference Card</h2>
+  <p>Every configurable field, one table — printable, or handy while the layout is still being
+    learned.</p>
+  <table>
+    <thead><tr><th>Field</th><th>Range / options</th><th>Default</th></tr></thead>
+    <tbody>
+      <sc-for list="{{quickRef}}" as="q" hint-placeholder-count="15">
+        <tr>
+          <td>{{q.name}}</td>
+          <td class="mono">{{q.range}}</td>
+          <td class="mono">{{q.default}}</td>
+        </tr>
+      </sc-for>
+    </tbody>
+  </table>
+
+  <div class="foot">Global Treasury Forecasting &amp; Liquidity Engine — User Manual</div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      coreParams: [
+        { name: "Dimension", meaning: "What to forecast: a receiving country (all corridors combined), one corridor, or one agent.", range: "Receiver country / Corridor / Agent", default: "Receiver country" },
+        { name: "Sending country", meaning: "Origin country of the transfer. Only used when Dimension is Corridor.", range: "24 countries in the data", default: "&mdash;" },
+        { name: "Receiver country", meaning: "Destination country the payout is made in.", range: "71 countries in the data", default: "First available" },
+        { name: "Agent", meaning: "The exchange house / payout agent, across every corridor it serves.", range: "102 agents in the data", default: "First available" },
+        { name: "Horizon (days)", meaning: "How many days ahead to forecast, starting the day after the selected filter's own last transaction.", range: "1 &ndash; 365", default: "30" },
+        { name: "Baseline funding level (USD)", meaning: "The liquidity planned for availability each day; compared against the model's risk-adjusted requirement to flag shortfalls.", range: "&ge; 0 (no upper limit)", default: "0 (dashboard suggests 50,000 as a starting example)" },
+      ],
+      baselineMethods: [
+        { name: "Average", what: "Plain mean of the trailing window.", bestFor: "General-purpose starting point." },
+        { name: "Weighted average", what: "Recency-weighted (EWMA) &mdash; recent days count more than older ones in the same window.", bestFor: "Corridors whose typical volume has recently shifted." },
+        { name: "Median", what: "The middle value of the window &mdash; resistant to one unusually large day.", bestFor: "Thin, spiky corridors (rare big transactions on a background of quiet days)." },
+      ],
+      advancedParams: [
+        { name: "Safety buffer %", meaning: "Extra cushion on top of the model's own risk-adjusted estimate.", range: "&ge; 0 (e.g. 10 = +10%)", default: "0" },
+        { name: "Growth", meaning: "How the model treats the underlying trend.", range: "Linear / Flat", default: "Linear" },
+        { name: "Interval width", meaning: "Width of the Lower&ndash;Upper expected range. 0.8 = actual value expected inside it ~80% of the time.", range: "0.01 &ndash; 0.99", default: "0.80" },
+        { name: "Seasonality &ndash; Weekly", meaning: "Day-of-week effects (e.g. quieter weekends).", range: "On / Off", default: "On" },
+        { name: "Seasonality &ndash; Yearly", meaning: "Annual patterns (e.g. festival seasons).", range: "On / Off", default: "On" },
+        { name: "Seasonality &ndash; Daily", meaning: "Within-a-day patterns &mdash; not meaningful since volume is already totalled per day.", range: "On / Off", default: "Off" },
+        { name: "Salary week", meaning: "Adds a recurring end-of-month payday spike the model would otherwise miss.", range: "On / Off", default: "On" },
+        { name: "Trend decomposition chart", meaning: "Whether to render the trend/seasonality/holiday chart. The funding-gap chart always shows regardless.", range: "On / Off", default: "On" },
+        { name: "Statuses counted", meaning: "Which transaction outcomes count as real, funded volume.", range: "11 possible statuses", default: "Payment only" },
+      ],
+      outputTiles: [
+        { name: "Total shortfall", meaning: "Sum of every day's funding gap across the whole forecast period." },
+        { name: "Avg daily requirement", meaning: "The model's average expected volume per day (the typical amount, not the risk-adjusted one)." },
+        { name: "Safety stock ratio", meaning: "Safety stock &divide; expected volume, e.g. 1.6x. Very high (well above ~2x) signals a thin/spiky corridor, not a modeling problem." },
+        { name: "Peak demand day", meaning: "The single day in the horizon with the largest funding gap." },
+        { name: "Days with shortfall", meaning: "How many days the Baseline falls short of Safety stock." },
+        { name: "Baseline funding level", meaning: "Echo of the value entered for Baseline, shown for context alongside the other tiles." },
+      ],
+      evalInputs: [
+        { name: "Days to hold out", meaning: "How many of the most recent days to treat as the test window &mdash; hidden from the model while it re-trains, then forecast and compared against what really happened on those days.", range: "7 &ndash; 180", default: "30" },
+      ],
+      evalResults: [
+        { name: "MAPE", answers: "On average, how far off was the forecast, as a percentage? Lower is better. Days with zero actual volume are left out of this one specifically &mdash; a percentage error is undefined when the true value is zero, which a quiet corridor genuinely has some days." },
+        { name: "RMSE", answers: "The same question in dollars rather than percent, and penalizes a few very large misses more than many small ones. Covers every day, including the zero-volume ones MAPE leaves out." },
+        { name: "Interval coverage", answers: "Out of the held-out days, what percentage actually landed inside the model's own Lower&ndash;Upper range? Compare this against Interval width (e.g. 80%) &mdash; well below that target means the model's own uncertainty band is too narrow to take at face value." },
+        { name: "Safety stock coverage", answers: "Out of the held-out days, what percentage would Safety stock (Upper plus any Safety buffer %) actually have covered? The more directly useful of the two coverage numbers, since it answers \"would the real funding recommendation have been enough,\" not just \"was the raw forecast's own uncertainty honest.\"" },
+        { name: "vs. naive baseline", answers: "A sanity check: a flat prediction (just the recent trailing average, held constant across the held-out window &mdash; the same number the Suggest &rarr; Average method would produce) is scored the same way. If Prophet doesn't beat \"just fund the recent average every day\" on this selection, the model isn't adding value here." },
+      ],
+      tableColumns: [
+        { name: "Date", meaning: "The calendar day being forecast." },
+        { name: "Forecast (yhat)", meaning: "The model's expected, most-likely volume for that day." },
+        { name: "Lower / Upper", meaning: "The model's expected range for that day, width set by Interval width." },
+        { name: "Safety stock", meaning: "The risk-adjusted funding recommended for that day (Upper plus any Safety buffer %)." },
+        { name: "Daily shortfall", meaning: "How much Baseline falls short of that day's Safety stock (zero if covered)." },
+        { name: "Cumulative shortfall", meaning: "Running total of daily shortfalls from the start of the horizon through that day." },
+        { name: "Liquidity/volume", meaning: "Baseline &divide; that day's forecast volume &mdash; compares how well-funded different corridors are on the same scale. Shown as &mdash; when volume is near zero." },
+      ],
+      glossary: [
+        { term: "Corridor", def: "A sending country &rarr; receiving country pair." },
+        { term: "Dimension", def: "Which of the three views (Receiver country / Corridor / Agent) a forecast is grouped by." },
+        { term: "Horizon", def: "How many days ahead is forecast, anchored to the selected filter's own last historical date." },
+        { term: "Baseline funding level", def: "The daily liquidity planned by the treasury team &mdash; a manual input, not calculated by the engine." },
+        { term: "Safety stock", def: "The risk-adjusted funding recommendation for a day: the model's upper estimate, plus any safety buffer." },
+        { term: "Safety stock ratio", def: "Safety stock divided by expected volume; a corridor-agnostic way to compare funding intensity." },
+        { term: "Shortfall (daily / cumulative)", def: "How much the baseline falls short of safety stock, for one day or summed across the horizon." },
+        { term: "Interval width", def: "How wide the model's expected (Lower&ndash;Upper) range is." },
+        { term: "Growth (Linear / Flat)", def: "Whether the model assumes an ongoing trend (Linear) or none beyond seasonality (Flat)." },
+        { term: "Salary week", def: "A synthetic recurring end-of-month event modeling the payday-driven remittance spike." },
+        { term: "Liquidity-to-volume ratio", def: "Baseline divided by forecast volume for a given day; lets very differently-sized corridors be compared fairly." },
+        { term: "Days to hold out (eval_days)", def: "How many of the most recent days the backtest hides and treats as a test window before comparing the forecast against what really happened." },
+        { term: "MAPE", def: "Mean absolute percentage error &mdash; on the backtest's held-out days, how far off the forecast was on average, as a percentage. Lower is better." },
+        { term: "RMSE", def: "Root mean squared error &mdash; the same idea as MAPE, in dollars, penalizing a few large misses more than many small ones." },
+        { term: "Interval / Safety-stock coverage (backtest)", def: "The percentage of held-out days Actual landed inside the model's range, or within what Safety stock would have funded, respectively." },
+        { term: "Naive baseline", def: "A flat, trailing-average prediction used as a sanity check against the backtest &mdash; the same value the Suggest &rarr; Average method would produce." },
+      ],
+      quickRef: [
+        { name: "Dimension", range: "receiver_country / corridor / agent", default: "receiver_country" },
+        { name: "Horizon (days)", range: "1 &ndash; 365", default: "30" },
+        { name: "Baseline funding level (USD)", range: "&ge; 0", default: "0" },
+        { name: "Safety buffer %", range: "&ge; 0", default: "0" },
+        { name: "Growth", range: "linear / flat", default: "linear" },
+        { name: "Interval width", range: "0.01 &ndash; 0.99", default: "0.80" },
+        { name: "Seasonality: weekly", range: "on / off", default: "on" },
+        { name: "Seasonality: yearly", range: "on / off", default: "on" },
+        { name: "Seasonality: daily", range: "on / off", default: "off" },
+        { name: "Salary week", range: "on / off", default: "on" },
+        { name: "Trend decomposition chart", range: "on / off", default: "on" },
+        { name: "Statuses counted", range: "any of 11 statuses", default: "Payment" },
+        { name: "Suggest method", range: "average / weighted_average / median", default: "average" },
+        { name: "Suggest window (days)", range: "1 &ndash; 365", default: "30" },
+        { name: "Days to hold out (Evaluate accuracy)", range: "7 &ndash; 180", default: "30" },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

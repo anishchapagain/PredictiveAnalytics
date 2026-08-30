@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CSV to DuckDB Migration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --page:#f8f6f1; --surface:#ffffff; --surface-2:#fbfaf7;
+    --text-primary:#1d1a15; --text-secondary:#5b5646; --text-muted:#8c8572;
+    --hairline:#e2ddd0; --border-ring:rgba(29,26,21,0.10);
+    --accent:#2569c4; --accent-hover:#184f95;
+    --current-mark:#8a7e63; --current-tint:#efe9db;
+    --proposed-mark:#b8790f; --proposed-tint:#fbeecb;
+    --good:#157f15; --warn:#a86800; --crit:#b8342f;
+    --font-display: "IBM Plex Mono", ui-monospace, "SF Mono", Consolas, monospace;
+    --font-body: "IBM Plex Sans", -apple-system, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --page:#1a1712; --surface:#221f18; --surface-2:#272319;
+      --text-primary:#f1ece1; --text-secondary:#c4bca7; --text-muted:#948c78;
+      --hairline:#3a352a; --border-ring:rgba(241,236,225,0.12);
+      --accent:#6fa8e8; --accent-hover:#8fbdee;
+      --current-mark:#b3a688; --current-tint:#2e2a1e;
+      --proposed-mark:#e2ab4c; --proposed-tint:#3a2c14;
+      --good:#6fc76f; --warn:#d9a441; --crit:#e2726d;
+    }
+  }
+  :root[data-theme="dark"] {
+    --page:#1a1712; --surface:#221f18; --surface-2:#272319;
+    --text-primary:#f1ece1; --text-secondary:#c4bca7; --text-muted:#948c78;
+    --hairline:#3a352a; --border-ring:rgba(241,236,225,0.12);
+    --accent:#6fa8e8; --accent-hover:#8fbdee;
+    --current-mark:#b3a688; --current-tint:#2e2a1e;
+    --proposed-mark:#e2ab4c; --proposed-tint:#3a2c14;
+    --good:#6fc76f; --warn:#d9a441; --crit:#e2726d;
+  }
+
+  * { box-sizing: border-box; }
+  html { text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--page); color: var(--text-primary);
+    font-family: var(--font-body); line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+
+  a { color: var(--accent); text-decoration-color: var(--border-ring); }
+  a:hover { color: var(--accent-hover); }
+  a:focus-visible, button:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+
+  .doc { max-width: 900px; margin: 0 auto; padding: 64px 32px 96px; }
+
+  .eyebrow {
+    font-family: var(--font-display); font-size: 0.76rem; letter-spacing: 0.09em;
+    text-transform: uppercase; color: var(--text-muted); margin: 0 0 14px;
+  }
+  h1 {
+    font-family: var(--font-display); font-weight: 600; font-size: clamp(1.7rem, 3.4vw, 2.35rem);
+    line-height: 1.15; letter-spacing: -0.01em; margin: 0 0 16px; text-wrap: balance;
+  }
+  .lede { font-size: 1.08rem; color: var(--text-secondary); max-width: 62ch; margin: 0; }
+
+  h2 {
+    font-family: var(--font-display); font-weight: 600; font-size: 1.3rem;
+    letter-spacing: -0.005em; margin: 0; padding-top: 20px; text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--font-display); font-weight: 600; font-size: 1.02rem;
+    margin: 0; text-wrap: balance;
+  }
+  .section { margin-top: 56px; padding-top: 28px; border-top: 1px solid var(--hairline); }
+  .section:first-of-type { margin-top: 40px; }
+
+  p { color: var(--text-secondary); max-width: 68ch; margin: 12px 0; }
+  .section > p:first-of-type { margin-top: 14px; }
+  strong { color: var(--text-primary); font-weight: 600; }
+  code {
+    font-family: var(--font-display); font-size: 0.88em; background: var(--surface-2);
+    border: 1px solid var(--hairline); border-radius: 4px; padding: 1px 6px;
+  }
+
+  .stack { display: flex; flex-direction: column; gap: 10px; }
+  ul.plain { margin: 12px 0; padding-left: 22px; color: var(--text-secondary); max-width: 66ch; }
+  ul.plain li { margin-bottom: 8px; }
+  ul.plain li::marker { color: var(--text-muted); }
+
+  .tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--font-display); font-size: 0.74rem; letter-spacing: 0.06em;
+    padding: 3px 11px; border-radius: 999px; border: 1px solid var(--hairline);
+    color: var(--text-secondary); background: var(--surface-2);
+  }
+  .tag.current { color: var(--current-mark); border-color: var(--current-mark); background: var(--current-tint); }
+  .tag.proposed { color: var(--proposed-mark); border-color: var(--proposed-mark); background: var(--proposed-tint); }
+  .tag .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  .callout {
+    border-radius: 10px; padding: 16px 20px; margin: 20px 0; font-size: 0.95rem;
+    color: var(--text-secondary); display: flex; gap: 12px; align-items: flex-start;
+    border: 1px solid var(--hairline);
+  }
+  .callout.tip { background: var(--surface-2); }
+  .callout.decided { background: var(--proposed-tint); border-color: var(--proposed-mark); }
+  .callout svg { flex: none; margin-top: 2px; color: var(--text-muted); }
+  .callout.decided svg { color: var(--proposed-mark); }
+  .callout strong { display: block; margin-bottom: 2px; }
+
+  figure { margin: 22px 0; }
+  .diagram {
+    background: var(--surface); border: 1px solid var(--border-ring); border-radius: 12px;
+    padding: 22px 20px 16px; overflow-x: auto;
+  }
+  .diagram svg { width: 100%; height: auto; display: block; min-width: 480px; }
+  figcaption { font-size: 0.85rem; color: var(--text-muted); margin-top: 10px; text-align: center; }
+
+  .table-scroll { overflow-x: auto; margin: 18px 0; border: 1px solid var(--hairline); border-radius: 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 560px; }
+  th, td { text-align: left; padding: 11px 16px; border-bottom: 1px solid var(--hairline); vertical-align: top; }
+  thead th {
+    font-family: var(--font-display); font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--text-muted); background: var(--surface-2); font-weight: 500;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.current { color: var(--current-mark); }
+  td.proposed { color: var(--proposed-mark); font-weight: 500; }
+  td.mono, th.mono { font-family: var(--font-display); font-variant-numeric: tabular-nums; }
+
+  .phase {
+    display: grid; grid-template-columns: auto 1fr; gap: 4px 18px; padding: 18px 0;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .phase:last-child { border-bottom: none; }
+  .phase .n {
+    font-family: var(--font-display); font-weight: 600; font-size: 0.85rem;
+    color: var(--proposed-mark); background: var(--proposed-tint);
+    border-radius: 6px; padding: 3px 9px; height: fit-content; white-space: nowrap;
+  }
+  .phase h3 { margin-bottom: 4px; }
+  .phase p { margin: 4px 0 0; }
+
+  .toc { background: var(--surface); border: 1px solid var(--border-ring); border-radius: 12px; padding: 22px 26px; margin: 28px 0 0; }
+  .toc h2 { padding-top: 0; font-size: 1rem; margin-bottom: 12px; }
+  .toc ol { margin: 0; padding-left: 22px; columns: 2; column-gap: 28px; }
+  .toc li { font-size: 0.92rem; margin-bottom: 6px; break-inside: avoid; }
+  @media (max-width: 560px) { .toc ol { columns: 1; } }
+
+  .foot { margin-top: 72px; padding-top: 22px; border-top: 1px solid var(--hairline); color: var(--text-muted); font-size: 0.82rem; }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <div class="eyebrow">Data-layer design &middot; proposal</div>
+  <h1>CSV to DuckDB Migration</h1>
+  <p class="lede">Why the current CSV-in-memory data layer has a real ceiling, what
+    replaces it, and — the question that actually decides this — how new data gets
+    added under each.</p>
+
+  <nav class="toc">
+    <h2>Contents</h2>
+    <ol>
+      <li><a href="#problem">The problem, precisely</a></li>
+      <li><a href="#today">Today's architecture</a></li>
+      <li><a href="#proposed">Proposed architecture</a></li>
+      <li><a href="#compare">Side by side</a></li>
+      <li><a href="#adding-data">Adding data — the question that matters</a></li>
+      <li><a href="#boundary">What changes, what doesn't</a></li>
+      <li><a href="#plan">Migration plan</a></li>
+      <li><a href="#risks">Risks &amp; decisions already made</a></li>
+    </ol>
+  </nav>
+
+  <h2 class="section" id="problem">The problem, precisely</h2>
+  <p><code>Business_Report.csv</code> is 233MB, 1.43M rows. <code>CSVDataRepository</code>
+    loads the whole thing into a pandas DataFrame and caches it by file mtime — which
+    works, but has a ceiling that's already visible today, not hypothetical:</p>
+  <ul class="plain">
+    <li>A cold load takes <strong>30&ndash;45 seconds</strong> — measured directly
+      against the real file this session, not estimated.</li>
+    <li>Several endpoints hit at once on a cold cache each independently re-parse the
+      <em>entire</em> file in parallel — a real, already-logged bug
+      (<code>TODO.md</code>, Tier 3).</li>
+    <li>Every query — even <code>SELECT one country's distinct agents</code> — first
+      pays the cost of materializing all 1.43M rows in Python, then filters.</li>
+  </ul>
+  <p>None of this is a defect in how <code>app/data/repository.py</code> was written —
+    it's the ceiling of the format itself. A flat file has no index, and pandas has no
+    way to read only the rows a query needs.</p>
+
+  <h2 class="section" id="today">Today's architecture</h2>
+  <p>One file, loaded whole, filtered in Python after the fact:</p>
+  <figure class="diagram">
+    <svg viewBox="0 0 640 470" role="img" aria-label="A request calls CSVDataRepository.load(), which checks the CSV file's mtime: if unchanged, it reuses the cached DataFrame instantly; if changed, it re-reads the entire 233 megabyte file from disk, taking 30 to 45 seconds. Either way, pandas then filters and aggregates the full table in Python before returning a response.">
+      <defs>
+        <marker id="arrowA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+        </marker>
+      </defs>
+      <g font-family="IBM Plex Mono, monospace" fill="currentColor">
+        <rect x="170" y="14" width="300" height="46" rx="8" fill="none" stroke="currentColor" stroke-width="1.3"/>
+        <text x="320" y="42" text-anchor="middle" font-size="12">GET /api/v1/meta/summary</text>
+
+        <line x1="320" y1="60" x2="320" y2="94" stroke="currentColor" stroke-width="1.3" marker-end="url(#arrowA)"/>
+
+        <rect x="170" y="96" width="300" height="46" rx="8" fill="none" stroke="currentColor" stroke-width="1.3"/>
+        <text x="320" y="124" text-anchor="middle" font-size="12">CSVDataRepository.load()</text>
+
+        <line x1="320" y1="142" x2="320" y2="168" stroke="currentColor" stroke-width="1.3" marker-end="url(#arrowA)"/>
+
+        <polygon points="320,166 456,222 320,278 184,222" fill="none" stroke="currentColor" stroke-width="1.3"/>
+        <text x="320" y="216" text-anchor="middle" font-size="10.5">mtime changed since</text>
+        <text x="320" y="230" text-anchor="middle" font-size="10.5">last load?</text>
+
+        <line x1="216" y1="248" x2="80" y2="316" stroke="currentColor" stroke-width="1.3" marker-end="url(#arrowA)"/>
+        <rect x="113" y="283" width="30" height="15" fill="var(--surface)"/>
+        <text x="128" y="294" text-anchor="middle" font-size="10.5">no</text>
+        <line x1="424" y1="248" x2="500" y2="316" stroke="currentColor" stroke-width="1.3" marker-end="url(#arrowA)"/>
+        <rect x="456" y="283" width="34" height="15" fill="var(--surface)"/>
+        <text x="472" y="294" text-anchor="middle" font-size="10.5">yes</text>
+
+        <rect x="20" y="318" width="220" height="52" rx="8" fill="none" stroke="currentColor" stroke-width="1.3"/>
+        <text x="130" y="340" text-anchor="middle" font-size="11">reuse cached</text>
+        <text x="130" y="356" text-anchor="middle" font-size="11">DataFrame &mdash; instant</text>
+
+        <rect x="360" y="318" width="260" height="52" rx="8" fill="none" stroke="var(--current-mark)" stroke-width="1.6"/>
+        <text x="490" y="338" text-anchor="middle" font-size="11" fill="var(--current-mark)">re-read all 233MB from disk</text>
+        <text x="490" y="354" text-anchor="middle" font-size="11" fill="var(--current-mark)">&mdash; 30&ndash;45s, measured</text>
+
+        <line x1="130" y1="370" x2="280" y2="404" stroke="currentColor" stroke-width="1.3" marker-end="url(#arrowA)"/>
+        <line x1="490" y1="370" x2="360" y2="404" stroke="currentColor" stroke-width="1.3" marker-end="url(#arrowA)"/>
+
+        <rect x="130" y="406" width="380" height="52" rx="8" fill="none" stroke="currentColor" stroke-width="1.3"/>
+        <text x="320" y="428" text-anchor="middle" font-size="11">pandas filters/aggregates the</text>
+        <text x="320" y="444" text-anchor="middle" font-size="11">FULL table, in Python, every time</text>
+      </g>
+    </svg>
+    <figcaption>Filtering happens last, in Python, after the whole file is already in
+      memory — the cold-load path is what makes a single busy morning of concurrent
+      requests expensive.</figcaption>
+  </figure>
+
+  <h2 class="section" id="proposed">Proposed architecture</h2>
+  <p>Filtering happens first, inside the engine, against files it reads selectively:</p>
+  <figure class="diagram">
+    <svg viewBox="0 0 640 320" role="img" aria-label="A request calls DuckDBDataRepository, which sends a SQL query that filters and aggregates directly against the data/*.parquet files on disk, reading only the columns and row groups the query needs. Only the small, already-reduced result crosses back into pandas, which returns the response.">
+      <defs>
+        <marker id="arrowB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+        </marker>
+      </defs>
+      <g font-family="IBM Plex Mono, monospace" fill="currentColor">
+        <rect x="170" y="14" width="300" height="46" rx="8" fill="none" stroke="currentColor" stroke-width="1.3"/>
+        <text x="320" y="42" text-anchor="middle" font-size="12">GET /api/v1/meta/summary</text>
+
+        <line x1="320" y1="60" x2="320" y2="94" stroke="currentColor" stroke-width="1.3" marker-end="url(#arrowB)"/>
+
+        <rect x="150" y="96" width="340" height="46" rx="8" fill="none" stroke="currentColor" stroke-width="1.3"/>
+        <text x="320" y="124" text-anchor="middle" font-size="12">DuckDBDataRepository</text>
+
+        <line x1="320" y1="142" x2="320" y2="176" stroke="var(--proposed-mark)" stroke-width="1.6" marker-end="url(#arrowB)"/>
+        <text x="336" y="164" font-size="10.5" fill="var(--proposed-mark)">SQL: filter + aggregate</text>
+
+        <rect x="90" y="178" width="460" height="60" rx="8" fill="none" stroke="var(--proposed-mark)" stroke-width="1.6"/>
+        <text x="320" y="202" text-anchor="middle" font-size="12" fill="var(--proposed-mark)">data/*.parquet</text>
+        <text x="320" y="220" text-anchor="middle" font-size="10.5" fill="var(--proposed-mark)">reads only the columns/row-groups the query touches</text>
+
+        <line x1="260" y1="238" x2="260" y2="270" stroke="currentColor" stroke-width="1.3" marker-end="url(#arrowB)"/>
+        <text x="150" y="258" font-size="10.5">small result only</text>
+
+        <rect x="150" y="272" width="220" height="44" rx="8" fill="none" stroke="currentColor" stroke-width="1.3"/>
+        <text x="260" y="298" text-anchor="middle" font-size="11">Response</text>
+      </g>
+    </svg>
+    <figcaption>The opposite order from today: the storage layer does the filtering,
+      so only an already-small result ever reaches Python.</figcaption>
+  </figure>
+
+  <h2 class="section" id="compare">Side by side</h2>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>Dimension</th><th class="current">Today &mdash; CSV</th><th class="proposed">Proposed &mdash; DuckDB + Parquet</th></tr></thead>
+      <tbody>
+        <tr><td>Cold load</td><td class="current">30&ndash;45s, whole file, measured live</td><td class="proposed">Low-seconds or better &mdash; selective column/row reads</td></tr>
+        <tr><td>Concurrent cold loads</td><td class="current">Each request re-parses the whole file independently (logged bug)</td><td class="proposed">DuckDB's own engine serializes/shares reads correctly</td></tr>
+        <tr><td>Where filtering happens</td><td class="current">In Python, after full load</td><td class="proposed">In SQL, inside the engine, before anything crosses into Python</td></tr>
+        <tr><td>Adding new data</td><td class="current">Append to the one growing file; next read re-parses everything</td><td class="proposed">Drop a new Parquet file in a folder; existing files untouched</td></tr>
+        <tr><td>New dependency</td><td class="current">None</td><td class="proposed"><code>duckdb</code> &mdash; confirmed installs cleanly, prebuilt wheel, this project's Python 3.14</td></tr>
+        <tr><td><code>DataRepository</code> interface</td><td class="current" colspan="2" style="color:var(--text-secondary)">Identical either way &mdash; <code>load() -&gt; pd.DataFrame</code>, unchanged. See "What changes" below.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="section" id="adding-data">Adding data — the question that matters</h2>
+  <p>This is what actually decides the design, more than raw speed: how does adding
+    <strong>historic</strong> data (an older backfill) or the <strong>newest</strong>
+    export differ? Under the proposed design, it doesn't — same mechanism either way.</p>
+  <figure class="diagram">
+    <svg viewBox="0 0 860 380" role="img" aria-label="Comparison: under the current CSV design, adding data means appending rows to the one existing file, so the next request must re-parse the entire, now-larger file from scratch. Under the proposed design, adding data — whether historic or newest — means dropping a new, separate Parquet file into a folder; the next request's query unions all files via a glob pattern, and existing files are never re-read or rewritten.">
+      <defs>
+        <marker id="arrowC" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+        </marker>
+      </defs>
+      <g font-family="IBM Plex Mono, monospace">
+        <text x="210" y="26" text-anchor="middle" font-size="12" font-weight="600" fill="var(--current-mark)">TODAY &mdash; one growing file</text>
+        <text x="650" y="26" text-anchor="middle" font-size="12" font-weight="600" fill="var(--proposed-mark)">PROPOSED &mdash; a folder of files</text>
+
+        <rect x="90" y="44" width="240" height="46" rx="8" fill="none" stroke="var(--current-mark)" stroke-width="1.4"/>
+        <text x="210" y="72" text-anchor="middle" font-size="11" fill="var(--current-mark)">Business_Report.csv (233MB)</text>
+
+        <line x1="210" y1="90" x2="210" y2="122" stroke="currentColor" stroke-width="1.3" marker-end="url(#arrowC)"/>
+        <rect x="110" y="102" width="200" height="15" fill="var(--surface)"/>
+        <text x="210" y="112" text-anchor="middle" font-size="10">append rows &mdash; historic or newest</text>
+
+        <rect x="90" y="124" width="240" height="46" rx="8" fill="none" stroke="var(--current-mark)" stroke-width="1.4"/>
+        <text x="210" y="146" text-anchor="middle" font-size="11" fill="var(--current-mark)">same file, now bigger</text>
+        <text x="210" y="161" text-anchor="middle" font-size="9.5" fill="var(--current-mark)">still one file, no way to read only the new part</text>
+
+        <line x1="210" y1="170" x2="210" y2="202" stroke="currentColor" stroke-width="1.3" marker-end="url(#arrowC)"/>
+        <rect x="175" y="182" width="70" height="15" fill="var(--surface)"/>
+        <text x="210" y="192" text-anchor="middle" font-size="10">next request</text>
+
+        <rect x="70" y="204" width="280" height="52" rx="8" fill="none" stroke="var(--current-mark)" stroke-width="1.8"/>
+        <text x="210" y="226" text-anchor="middle" font-size="11" fill="var(--current-mark)">re-parses the ENTIRE file</text>
+        <text x="210" y="242" text-anchor="middle" font-size="11" fill="var(--current-mark)">again, from scratch</text>
+
+        <line x1="440" y1="150" x2="440" y2="150" stroke="var(--hairline)"/>
+        <line x1="440" y1="40" x2="440" y2="360" stroke="var(--hairline)" stroke-width="1"/>
+
+        <rect x="530" y="44" width="260" height="46" rx="8" fill="none" stroke="var(--proposed-mark)" stroke-width="1.4"/>
+        <text x="660" y="66" text-anchor="middle" font-size="11" fill="var(--proposed-mark)">data/*.parquet</text>
+        <text x="660" y="81" text-anchor="middle" font-size="9.5" fill="var(--proposed-mark)">existing files, untouched</text>
+
+        <line x1="660" y1="90" x2="660" y2="122" stroke="currentColor" stroke-width="1.3" marker-end="url(#arrowC)"/>
+        <rect x="540" y="102" width="240" height="15" fill="var(--surface)"/>
+        <text x="660" y="112" text-anchor="middle" font-size="10">drop in a NEW file &mdash; historic or newest</text>
+
+        <rect x="530" y="124" width="260" height="46" rx="8" fill="none" stroke="var(--proposed-mark)" stroke-width="1.4"/>
+        <text x="660" y="146" text-anchor="middle" font-size="11" fill="var(--proposed-mark)">+ data/2026-09-batch.parquet</text>
+        <text x="660" y="161" text-anchor="middle" font-size="9.5" fill="var(--proposed-mark)">small, separate, any filename</text>
+
+        <line x1="660" y1="170" x2="660" y2="202" stroke="currentColor" stroke-width="1.3" marker-end="url(#arrowC)"/>
+        <rect x="625" y="182" width="70" height="15" fill="var(--surface)"/>
+        <text x="660" y="192" text-anchor="middle" font-size="10">next request</text>
+
+        <rect x="510" y="204" width="300" height="60" rx="8" fill="none" stroke="var(--proposed-mark)" stroke-width="1.8"/>
+        <text x="660" y="226" text-anchor="middle" font-size="11" fill="var(--proposed-mark)">glob unions ALL files</text>
+        <text x="660" y="242" text-anchor="middle" font-size="10.5" fill="var(--proposed-mark)">existing files never re-read</text>
+        <text x="660" y="256" text-anchor="middle" font-size="10.5" fill="var(--proposed-mark)">or rewritten</text>
+
+        <text x="210" y="300" text-anchor="middle" font-size="10.5" fill="var(--text-muted)">cost grows with total data size,</text>
+        <text x="210" y="316" text-anchor="middle" font-size="10.5" fill="var(--text-muted)">every single time</text>
+        <text x="660" y="300" text-anchor="middle" font-size="10.5" fill="var(--text-muted)">cost is proportional to just</text>
+        <text x="660" y="316" text-anchor="middle" font-size="10.5" fill="var(--text-muted)">the NEW file, every time</text>
+      </g>
+    </svg>
+    <figcaption>Historic backfill and newest export are the identical operation on the
+      right — DuckDB's glob-based read doesn't care about file order or naming.</figcaption>
+  </figure>
+  <div class="callout decided">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <div><strong>Duplicate protection, decided</strong>
+      If two Parquet exports happen to overlap in date range, rows could double-count.
+      <code>Control_No</code> (the schema's own unique transaction id) is deduplicated
+      at query time by default, so an accidental overlap is harmless instead of quietly
+      inflating volume.</div>
+  </div>
+
+  <h2 class="section" id="boundary">What changes, what doesn't</h2>
+  <p>The migration is deliberately scoped to below one line — the
+    <code>DataRepository</code> contract itself never moves:</p>
+  <figure class="diagram">
+    <svg viewBox="0 0 860 260" role="img" aria-label="Above the DataRepository interface boundary, app/api and app/forecasting (TreasuryEngine) are completely unchanged. Below the boundary, CSVDataRepository and the proposed DuckDBDataRepository are two interchangeable implementations of the same load() contract, selected by one configuration setting.">
+      <g font-family="IBM Plex Mono, monospace">
+        <rect x="60" y="16" width="300" height="46" rx="8" fill="none" stroke="currentColor" stroke-width="1.3"/>
+        <text x="210" y="44" text-anchor="middle" font-size="11">app/api/ (routes)</text>
+        <rect x="500" y="16" width="300" height="46" rx="8" fill="none" stroke="currentColor" stroke-width="1.3"/>
+        <text x="650" y="44" text-anchor="middle" font-size="11">app/forecasting/ (TreasuryEngine)</text>
+        <text x="430" y="44" text-anchor="middle" font-size="10" fill="var(--text-muted)">both unchanged</text>
+
+        <line x1="20" y1="86" x2="840" y2="86" stroke="currentColor" stroke-width="1.6" stroke-dasharray="1 0"/>
+        <rect x="165" y="71" width="530" height="15" fill="var(--surface)"/>
+        <text x="430" y="82" text-anchor="middle" font-size="10.5" fill="var(--text-secondary)">DataRepository.load() -&gt; pd.DataFrame &mdash; the one contract both sides agree on</text>
+
+        <line x1="210" y1="62" x2="210" y2="86" stroke="currentColor" stroke-width="1.3"/>
+        <line x1="650" y1="62" x2="650" y2="86" stroke="currentColor" stroke-width="1.3"/>
+        <line x1="230" y1="86" x2="230" y2="118" stroke="var(--current-mark)" stroke-width="1.3"/>
+        <line x1="630" y1="86" x2="630" y2="118" stroke="var(--proposed-mark)" stroke-width="1.3"/>
+
+        <rect x="90" y="120" width="280" height="60" rx="8" fill="var(--current-tint)" stroke="var(--current-mark)" stroke-width="1.4"/>
+        <text x="230" y="146" text-anchor="middle" font-size="11" fill="var(--current-mark)">CSVDataRepository</text>
+        <text x="230" y="164" text-anchor="middle" font-size="10" fill="var(--current-mark)">active today</text>
+
+        <rect x="490" y="120" width="280" height="60" rx="8" fill="var(--proposed-tint)" stroke="var(--proposed-mark)" stroke-width="1.4"/>
+        <text x="630" y="146" text-anchor="middle" font-size="11" fill="var(--proposed-mark)">DuckDBDataRepository</text>
+        <text x="630" y="164" text-anchor="middle" font-size="10" fill="var(--proposed-mark)">proposed</text>
+
+        <text x="430" y="150" text-anchor="middle" font-size="10" fill="var(--text-muted)">one config</text>
+        <text x="430" y="164" text-anchor="middle" font-size="10" fill="var(--text-muted)">setting picks</text>
+        <text x="430" y="178" text-anchor="middle" font-size="10" fill="var(--text-muted)">which</text>
+
+        <rect x="330" y="210" width="200" height="40" rx="8" fill="none" stroke="currentColor" stroke-width="1.1" stroke-dasharray="3 3"/>
+        <text x="430" y="234" text-anchor="middle" font-size="10.5">Settings.data_backend</text>
+      </g>
+    </svg>
+    <figcaption>Everything above the line — every route, every forecast, every test in
+      <code>tests/</code> that isn't <code>conftest.py</code>'s own fixture wiring —
+      is untouched.</figcaption>
+  </figure>
+
+  <h2 class="section" id="plan">Migration plan</h2>
+  <div class="stack">
+    <div class="phase">
+      <span class="n">Phase 1</span>
+      <div>
+        <h3>Swap the repository, prove nothing else moved</h3>
+        <p>Convert <code>Business_Report.csv</code> &rarr; <code>data/business_report.parquet</code>
+          once. Build <code>DuckDBDataRepository</code> behind the exact same
+          <code>load() -&gt; pd.DataFrame</code> contract <code>CSVDataRepository</code>
+          already satisfies — reads <code>data/*.parquet</code>, dedups by
+          <code>Control_No</code>, invalidates its cache off the folder's file listing
+          (not one file's mtime). Add a test using the same fixture pattern already in
+          <code>tests/conftest.py</code>. Flip <code>Settings.data_backend</code> to
+          <code>"duckdb"</code>. The full existing test suite (38 tests) should pass
+          unmodified — that's the actual proof this stayed below the line.</p>
+      </div>
+    </div>
+    <div class="phase">
+      <span class="n">Phase 2</span>
+      <div>
+        <h3>Push the real query work into SQL</h3>
+        <p>Optional, separate follow-up, not required for Phase 1 to work: the meta
+          endpoints' <code>nunique()</code>/<code>groupby()</code> calls currently run
+          in pandas after <code>load()</code> returns the full table. Rewriting them as
+          SQL run directly against the Parquet files is where the deepest performance
+          win actually lives — Phase 1 alone already fixes the cold-load ceiling, this
+          is the next increment on top of it.</p>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="section" id="risks">Risks &amp; decisions already made</h2>
+  <ul class="plain">
+    <li><strong>Duplicate rows across files</strong> — decided: dedup by
+      <code>Control_No</code> at query time (see the callout above).</li>
+    <li><strong>Cache invalidation across many files</strong> — a directory listing
+      (filenames + mtimes) replaces the single-file mtime check; still no restart
+      needed to pick up new data, same as today.</li>
+    <li><strong>New dependency risk</strong> — <code>duckdb</code> installs cleanly with
+      a prebuilt wheel on this project's actual Python version (confirmed, not
+      assumed); zero external server, so it carries none of a real Postgres
+      instance's operational weight.</li>
+    <li><strong>Reversibility</strong> — because <code>DataRepository</code> is a real
+      interface, this is not a one-way door. A future <code>PostgresDataRepository</code>
+      (still on <code>TODO.md</code>) would be the same shape of swap, and
+      <code>CSVDataRepository</code> doesn't have to be deleted — it can stay as the
+      fallback <code>Settings.data_backend</code> already supports.</li>
+  </ul>
+
+  <div class="foot">CSV to DuckDB Migration &mdash; design doc &middot; iSendAnalytics &middot; see <code>TODO.md</code> / <code>notes.txt</code> for status</div>
+</div>
+</body>
+</html>
