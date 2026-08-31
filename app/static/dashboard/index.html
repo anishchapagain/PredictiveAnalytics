@@ -676,11 +676,10 @@
                 <th>Weekday</th>
                 <th>Forecast (yhat)<span class="info-slot" data-term="yhat"></span></th>
                 <th class="lgbm-col hidden">LightGBM<span class="info-slot" data-term="yhat_lightgbm"></span></th>
+                <th class="lgbm-col hidden">Ensemble<span class="info-slot" data-term="yhat_ensemble"></span></th>
                 <th>Lower<span class="info-slot" data-term="yhat_range"></span></th>
                 <th>Upper<span class="info-slot" data-term="yhat_range"></span></th>
                 <th>Safety stock<span class="info-slot" data-term="safety_stock"></span></th>
-                <th>Daily shortfall<span class="info-slot" data-term="daily_shortfall"></span></th>
-                <th>Cumulative shortfall<span class="info-slot" data-term="cumulative_shortfall"></span></th>
                 <th>Liquidity/volume<span class="info-slot" data-term="liquidity_to_volume_ratio"></span></th>
               </tr>
             </thead>
@@ -805,6 +804,13 @@ const GLOSSARY = {
     "“Evaluate forecast accuracy”. It is a second opinion only — safety stock, shortfall " +
     "and every headline figure stay Prophet-derived, because Prophet's uncertainty band " +
     "is the calibrated one. Costs about 1–2 extra seconds."],
+  yhat_ensemble: ["Ensemble",
+    "The plain average of the Prophet and LightGBM forecasts for this day. Shown for " +
+    "comparison only — it drives no funding number, and safety stock is still taken from " +
+    "Prophet's uncertainty band. Treat a wide gap between the two models as a signal to " +
+    "run “Evaluate forecast accuracy” on this corridor rather than as a reason to trust " +
+    "the midpoint: on this project's own backtests a 50/50 average scored worse than the " +
+    "better of the two models it averages."],
   yhat_lightgbm: ["LightGBM forecast",
     "The LightGBM model's expected volume for this day, next to Prophet's. It has no " +
     "uncertainty band and drives no funding number. Because it works from recent history " +
@@ -1694,13 +1700,19 @@ function renderResults(data) {
     // Always emitted, hidden by CSS when unused: every row must carry the same number of
     // cells as the header has columns, or the table silently misaligns and each value
     // appears under the wrong heading.
-    const lgbmValue = row.yhat_lightgbm != null ? fmtNum(row.yhat_lightgbm) : "—";
-    const lgbmCell = `<td class="lgbm-cell lgbm-col">${lgbmValue}</td>`;
+    const hasLgbm = row.yhat_lightgbm != null;
+    const lgbmValue = hasLgbm ? fmtNum(row.yhat_lightgbm) : "—";
+    // Straight mean of the two point forecasts, computed here rather than server-side:
+    // both inputs are already in the response, and it drives no funding number, so it
+    // needs no API field of its own. Only meaningful when both models ran -- the column
+    // is hidden with the LightGBM one otherwise.
+    const ensembleValue = hasLgbm ? fmtNum((row.yhat + row.yhat_lightgbm) / 2) : "—";
+    const lgbmCell = `<td class="lgbm-cell lgbm-col">${lgbmValue}</td>` +
+      `<td class="lgbm-cell lgbm-col">${ensembleValue}</td>`;
     tr.innerHTML = `<td>${row.ds}</td><td>${row.weekday}</td><td>${fmtNum(row.yhat)}</td>` +
       lgbmCell +
       `<td>${fmtNum(row.yhat_lower)}</td>` +
       `<td>${fmtNum(row.yhat_upper)}</td><td>${fmtNum(row.safety_stock)}</td>` +
-      `<td>${fmtNum(row.daily_shortfall)}</td><td>${fmtNum(row.cumulative_shortfall)}</td>` +
       `<td>${row.liquidity_to_volume_ratio !== null ? fmtNum(row.liquidity_to_volume_ratio, 4) : "—"}</td>`;
     tbody.appendChild(tr);
   });

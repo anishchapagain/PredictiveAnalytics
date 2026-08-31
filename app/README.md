@@ -416,6 +416,19 @@ Things worth knowing if you touch it:
   it in a bordered, hoverable control gives the text a container, makes the whole block a
   click target, and keeps the measure readable (~88ch) rather than stretching prose across
   1000px+.
+- **The day-by-day table shows point forecasts, not the funding columns.** It carries Date,
+  Weekday, Forecast, LightGBM, Ensemble, Lower, Upper, Safety stock and Liquidity/volume.
+  `daily_shortfall` and `cumulative_shortfall` were removed from it: both remain in the API
+  response, in the stat tiles (total shortfall, peak demand day, days with shortfall) and as
+  the red markers on the funding-gap chart, so nothing is lost -- the table just stops being
+  nine columns wide when the per-day shortfall was already plotted directly above it.
+- **`Ensemble` is computed client-side and is display-only.** A plain mean of `yhat` and
+  `yhat_lightgbm`; both are already in the response, and it drives no funding number, so it
+  gets no API field. It is hidden alongside the LightGBM column, since a mean of one model is
+  not an ensemble. Worth knowing before anyone reads it as authoritative: on this project's
+  own 24 recursive backtests a 50/50 average scored **worse than the better of its two
+  components** (57.5% WAPE against LightGBM's 48.2%), which is why it is a comparison column
+  and not a third forecast.
 - **The data table always emits every cell, including the hidden LightGBM one.** Omitting a
   `<td>` to "hide" a column silently misaligns the whole row: with LightGBM off, the body had
   nine cells against a ten-column header, so every value from that column rightwards rendered
