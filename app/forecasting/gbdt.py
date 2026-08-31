@@ -68,6 +68,50 @@ def _lgb_params(config: ForecastConfig) -> dict:
     }
 
 
+def _log_feature_matrix(feature_names: list[str], usable_rows: int, history_rows: int) -> None:
+    """Log the engineered feature matrix by name, grouped by family.
+
+    `engine.py`'s `_log_column_diff` names every column at each Prophet-side boundary, on the
+    principle that the pipeline's feature-engineering steps should be readable from the logs
+    alone rather than only by reading the source. This is the largest expansion in the whole
+    pipeline -- two columns of ds/y become ~61 engineered features -- so it gets the same
+    treatment, in the same `[columns]` format so both grep together.
+
+    Grouped rather than dumped flat: 61 names on one line is a wall of text, and the grouping
+    is the useful part when reading back a run ("were the lags there? did the holiday flags
+    resolve?"). The full ordered list follows at DEBUG for anyone reproducing a fit exactly.
+    """
+    groups: dict[str, list[str]] = {
+        "lag": [], "rolling": [], "ewma": [], "momentum": [], "holiday": [],
+        "salary": [], "calendar": [],
+    }
+    for name in feature_names:
+        if name.startswith("lag_"):
+            groups["lag"].append(name)
+        elif name.startswith("rolling_"):
+            groups["rolling"].append(name)
+        elif name.startswith("ewma_"):
+            groups["ewma"].append(name)
+        elif name.startswith(("ratio_", "diff_", "growth_")):
+            groups["momentum"].append(name)
+        elif "holiday" in name:
+            groups["holiday"].append(name)
+        elif "salary" in name:
+            groups["salary"].append(name)
+        else:
+            groups["calendar"].append(name)
+
+    logger.info(
+        "[columns] LightGBM feature engineering (ds/y -> engineered matrix): 2 -> %d columns "
+        "| %d of %d history rows usable after lag warm-up",
+        len(feature_names), usable_rows, history_rows,
+    )
+    for family, names in groups.items():
+        if names:
+            logger.info("[columns]   %-8s (%2d): %s", family, len(names), ", ".join(names))
+    logger.debug("[columns] LightGBM full ordered feature list: %s", feature_names)
+
+
 def forecast_lightgbm(
     prepared_df: pd.DataFrame, config: ForecastConfig, *, horizon_days: int | None = None
 ) -> np.ndarray | None:
@@ -118,6 +162,8 @@ def forecast_lightgbm(
         return None
 
     feature_names = list(train.columns)
+    _log_feature_matrix(feature_names, int(usable.sum()), len(history))
+
     started = time.perf_counter()
     try:
         model = lgb.train(

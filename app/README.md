@@ -169,7 +169,8 @@ app/
                            summarize / run / evaluate_accuracy (backtest, see below)
     features.py            ~61 engineered features (calendar / payday / holiday / lag /
                            rolling / momentum) for LightGBM only -- Prophet needs none of them
-    gbdt.py                Optional LightGBM comparison forecast, recursive multi-step
+    gbdt.py                Optional LightGBM comparison forecast, recursive multi-step;
+                           logs the engineered feature matrix by name, grouped by family
     charts.py              Renders Prophet's trend decomposition as Plotly figure JSON
                            (no image rendering at all -- see "Dashboard" below)
   api/
