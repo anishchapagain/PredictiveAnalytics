@@ -415,6 +415,16 @@ Things worth knowing if you touch it:
   it in a bordered, hoverable control gives the text a container, makes the whole block a
   click target, and keeps the measure readable (~88ch) rather than stretching prose across
   1000px+.
+- **The data table always emits every cell, including the hidden LightGBM one.** Omitting a
+  `<td>` to "hide" a column silently misaligns the whole row: with LightGBM off, the body had
+  nine cells against a ten-column header, so every value from that column rightwards rendered
+  under the wrong heading -- "Safety stock" displayed `daily_shortfall`, and Liquidity/volume
+  came out empty. Two causes, both fixed: the header cell carried `class="lgbm-col hidden"`
+  but **no generic `.hidden` rule exists in this stylesheet** (every one is scoped to a
+  component class, e.g. `.field.hidden`), so it never hid; and the matching `<td>` was
+  conditionally omitted. Now the cell is always rendered and `.lgbm-col.hidden` hides both
+  halves together, after the rows are built so the toggle reaches the body too. If you add
+  another optional column, render it always and hide it with CSS -- never vary the cell count.
 - **Charts are plotted only after their container is visible.** `renderResults()` removes
   `hidden` from `#results` as its *first* action, before any `Plotly.newPlot()`. Plotly
   measures the container at plot time, and a `display: none` container measures zero, so it

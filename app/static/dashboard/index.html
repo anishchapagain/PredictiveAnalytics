@@ -231,6 +231,12 @@
      used for the LightGBM chart trace, so the two expected-volume columns are never
      confused at a glance and table and chart agree on which colour means which model. */
   td.lgbm-cell { color: var(--series-3); }
+  /* Every .hidden rule in this stylesheet is scoped to a component class -- there is
+     no generic `.hidden`. The LightGBM column relied on one existing, so its header
+     cell never actually hid, and with the matching <td> omitted the whole row shifted
+     one column left: 'Safety stock' displayed daily_shortfall and Liquidity/volume
+     rendered empty. Both halves are fixed -- this rule, and always emitting the cell. */
+  .lgbm-col.hidden { display: none; }
   .lgbm-badge {
     display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 3px;
     font-size: 0.7rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
@@ -1680,17 +1686,16 @@ function renderResults(data) {
   // meta.lightgbm_included, not the request checkbox, since the model can be skipped
   // on thin history or fail soft while the Prophet forecast still returns normally.
   const showLgbm = Boolean(data.meta && data.meta.lightgbm_included);
-  document.querySelectorAll(".lgbm-col").forEach(node => {
-    node.classList.toggle("hidden", !showLgbm);
-  });
 
   const tbody = el("data-table-body");
   tbody.innerHTML = "";
   data.forecast.forEach(row => {
     const tr = document.createElement("tr");
-    const lgbmCell = showLgbm
-      ? `<td class="lgbm-cell lgbm-col">${row.yhat_lightgbm != null ? fmtNum(row.yhat_lightgbm) : "—"}</td>`
-      : "";
+    // Always emitted, hidden by CSS when unused: every row must carry the same number of
+    // cells as the header has columns, or the table silently misaligns and each value
+    // appears under the wrong heading.
+    const lgbmValue = row.yhat_lightgbm != null ? fmtNum(row.yhat_lightgbm) : "—";
+    const lgbmCell = `<td class="lgbm-cell lgbm-col">${lgbmValue}</td>`;
     tr.innerHTML = `<td>${row.ds}</td><td>${row.weekday}</td><td>${fmtNum(row.yhat)}</td>` +
       lgbmCell +
       `<td>${fmtNum(row.yhat_lower)}</td>` +
@@ -1700,7 +1705,10 @@ function renderResults(data) {
     tbody.appendChild(tr);
   });
 
-  el("results").classList.remove("hidden");
+  // Applied once the rows exist, so it reaches the body cells as well as the header.
+  document.querySelectorAll(".lgbm-col").forEach(node => {
+    node.classList.toggle("hidden", !showLgbm);
+  });
 }
 
 // ---- Evaluate accuracy (backtest) -------------------------------------------
