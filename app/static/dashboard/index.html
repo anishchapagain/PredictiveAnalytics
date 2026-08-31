@@ -677,7 +677,6 @@
                 <th>Forecast (yhat)<span class="info-slot" data-term="yhat"></span></th>
                 <th class="lgbm-col hidden">LightGBM<span class="info-slot" data-term="yhat_lightgbm"></span></th>
                 <th class="lgbm-col hidden">Ensemble<span class="info-slot" data-term="yhat_ensemble"></span></th>
-                <th>Lower<span class="info-slot" data-term="yhat_range"></span></th>
                 <th>Upper<span class="info-slot" data-term="yhat_range"></span></th>
                 <th>Safety stock<span class="info-slot" data-term="safety_stock"></span></th>
                 <th>Liquidity/volume<span class="info-slot" data-term="liquidity_to_volume_ratio"></span></th>
@@ -909,9 +908,12 @@ const GLOSSARY = {
     "risk-adjusted requirement."],
   yhat: ["Forecast (yhat)",
     "Prophet's expected, most-likely transaction volume for that day."],
-  yhat_range: ["Lower / Upper",
-    "The model's expected range for that day — actual volume is expected to land " +
-    "between these most of the time. Width is controlled by Interval width."],
+  yhat_range: ["Upper",
+    "The top of the model's expected range for this day — at the default 80% interval " +
+    "width, volume should land below it about 90% of the time. This is the number safety " +
+    "stock is built from, which is why it is the edge shown here. The lower edge is not " +
+    "listed: it sits at zero on most days for a volatile corridor and no funding decision " +
+    "is made from it. The full band is still shaded on the funding-gap chart above."],
   safety_stock: ["Safety stock",
     "The risk-adjusted funding recommended for that day: the model's upper estimate, plus " +
     "any Safety buffer % you've added. This is what you'd want available, not just the " +
@@ -1711,7 +1713,6 @@ function renderResults(data) {
       `<td class="lgbm-cell lgbm-col">${ensembleValue}</td>`;
     tr.innerHTML = `<td>${row.ds}</td><td>${row.weekday}</td><td>${fmtNum(row.yhat)}</td>` +
       lgbmCell +
-      `<td>${fmtNum(row.yhat_lower)}</td>` +
       `<td>${fmtNum(row.yhat_upper)}</td><td>${fmtNum(row.safety_stock)}</td>` +
       `<td>${row.liquidity_to_volume_ratio !== null ? fmtNum(row.liquidity_to_volume_ratio, 4) : "—"}</td>`;
     tbody.appendChild(tr);

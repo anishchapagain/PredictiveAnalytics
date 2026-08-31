@@ -417,7 +417,16 @@ Things worth knowing if you touch it:
   click target, and keeps the measure readable (~88ch) rather than stretching prose across
   1000px+.
 - **The day-by-day table shows point forecasts, not the funding columns.** It carries Date,
-  Weekday, Forecast, LightGBM, Ensemble, Lower, Upper, Safety stock and Liquidity/volume.
+  Weekday, Forecast, LightGBM, Ensemble, Upper, Safety stock and Liquidity/volume. `Lower` was
+  dropped as well: on a volatile corridor the band is clipped at zero, so that column read
+  `0.00` on most rows (4 of 5 on Australia), and no funding decision is taken from the lower
+  edge. The full interval is still shaded on the funding-gap chart.
+
+  Note that `Upper` and `Safety stock` hold **identical values whenever `safety_buffer_pct` is
+  0**, which is the default -- safety stock is `yhat_upper * (1 + buffer)`. Both are kept
+  deliberately: they mean different things (the model's own uncertainty versus the funding
+  recommendation) and they diverge the moment a buffer is set, so collapsing them would hide
+  that relationship from anyone who later sets one.
   `daily_shortfall` and `cumulative_shortfall` were removed from it: both remain in the API
   response, in the stat tiles (total shortfall, peak demand day, days with shortfall) and as
   the red markers on the funding-gap chart, so nothing is lost -- the table just stops being
