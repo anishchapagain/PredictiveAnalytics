@@ -464,6 +464,13 @@ Things worth knowing if you touch it:
   roughly 100px below the plot at those heights, i.e. inside the clipped region. They now
   use `yanchor: "bottom", y: 1.02` with the top margin sized to hold them, which also frees
   the bottom margin for the x-axis title.
+- **The glossary section is currently commented out** in the markup, and `renderGlossary()`
+  returns early when `#glossary-grid` is absent, so it can be toggled by uncommenting alone.
+  The `GLOSSARY` object itself must stay: it also builds all 34 inline "i" tooltips through
+  `wireInfoIcons()`, which is the reason the guard exists. `renderGlossary()` runs one line
+  before `wireInfoIcons()` at startup, so an unguarded null there would throw and take every
+  tooltip and all subsequent event wiring with it -- an inert dashboard from deleting one
+  `<details>`.
 - **Page order puts decisions first and reference last**: filters -> stat tiles ->
   funding-gap chart -> day-by-day table -> accuracy backtest -> trend decomposition ->
   glossary. The trend decomposition and glossary moved to the foot deliberately: the first

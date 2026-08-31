@@ -731,10 +731,15 @@
 
   <!-- Reference material: read once to learn the vocabulary, then rarely again. Kept at
        the foot of the page so it never sits between the operator and the numbers. -->
+  <!-- TEMPORARILY DISABLED. Uncomment the block below to bring the glossary back -- no JS
+       change is needed, renderGlossary() returns early when #glossary-grid is absent. The
+       GLOSSARY object itself stays in use either way: it still drives all 34 inline "i"
+       tooltips, so do not remove it along with this section.
   <details class="card" id="glossary-card">
     <summary>What do these numbers mean? (glossary)</summary>
     <div class="glossary-grid" id="glossary-grid"></div>
   </details>
+  -->
 </div>
 
 <!-- Self-hosted (not a CDN) so this page needs no external network access; see the
@@ -998,6 +1003,11 @@ function wireInfoIcons() {
 
 function renderGlossary() {
   const grid = el("glossary-grid");
+  // The glossary card can be commented out of the markup without touching this function.
+  // Without this guard the appendChild below throws, and since renderGlossary() runs one
+  // line before wireInfoIcons() at startup, that would take out every tooltip and all the
+  // event wiring after it -- an inert dashboard from removing one <details>.
+  if (!grid) return;
   Object.values(GLOSSARY).forEach(([term, def]) => {
     const dt = document.createElement("div");
     dt.className = "term";
